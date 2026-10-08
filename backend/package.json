@@ -1,0 +1,22 @@
+{
+  "name": "calap-alert-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "REST API for the Calap Alert app (Ibaba East & Ibaba West)",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/index.js",
+    "start": "node src/index.js",
+    "db:setup": "node --env-file=.env scripts/setup-db.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  }
+}

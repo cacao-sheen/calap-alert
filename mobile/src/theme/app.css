@@ -1,0 +1,116 @@
+/* ---------- Layout ---------- */
+.page-pad { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.card { background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); }
+.row { display: flex; align-items: center; gap: 12px; }
+.between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: #64748b; }
+.small { font-size: 12px; }
+.section-title { font-size: 16px; font-weight: 700; margin: 4px 0 0; }
+.chip-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 50%; font-size: 20px;
+}
+
+/* ---------- Home header ---------- */
+.hero { background: #1e3a8a; color: #fff; padding: 12px 20px 20px; }
+.hero h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+.hero .sub { color: #bfdbfe; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+
+.alert-banner { background: #dc2626; color: #fff; border-radius: 16px; padding: 14px; display: flex; gap: 12px; align-items: center; }
+.alert-banner.warning { background: #f59e0b; color: #111827; }
+.alert-banner.info { background: #1d4ed8; }
+.alert-banner .kicker { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; opacity: 0.9; }
+.alert-banner p { margin: 2px 0 0; font-size: 13px; line-height: 18px; }
+
+.big-temp { font-size: 40px; font-weight: 800; line-height: 1.1; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: #f8fafc; border-radius: 12px; padding: 10px; }
+.stat .label { font-size: 11px; color: #64748b; }
+.stat .value { font-size: 15px; font-weight: 700; }
+.hourly { display: flex; justify-content: space-between; text-align: center; font-size: 12px; }
+.hourly b { display: block; font-size: 13px; }
+
+.quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.quick button {
+  background: #fff; border: 0; border-radius: 14px; padding: 12px 4px; display: flex; flex-direction: column;
+  align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #334155;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); font-family: inherit;
+}
+
+/* ---------- Report ---------- */
+.type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.type-tile {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 10px 4px; display: flex;
+  flex-direction: column; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: #334155;
+  font-family: inherit;
+}
+.type-tile.selected { border: 2px solid #1d4ed8; background: #eff6ff; color: #1d4ed8; }
+.photo-row { display: flex; gap: 10px; align-items: center; }
+.photo-add {
+  width: 72px; height: 72px; border: 1.5px dashed #94a3b8; border-radius: 12px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; color: #64748b; font-size: 11px; font-weight: 600; background: #fff;
+}
+.photo-thumb { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; }
+
+/* ---------- Capacity bar ---------- */
+.bar { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+.bar > div { height: 100%; border-radius: 4px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 999px; }
+
+/* ---------- Map ---------- */
+.map-container { position: absolute; inset: 0; }
+.map-top { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+.map-top ion-segment { background: #fff; border-radius: 999px; width: 140px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12); }
+.map-legend { display: flex; gap: 6px; flex-wrap: wrap; }
+.map-legend span { background: #fff; border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1); }
+.map-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; background: #fff; border-radius: 24px 24px 0 0;
+  padding: 10px 20px 16px; box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.1); display: flex; flex-direction: column; gap: 10px;
+}
+.map-sheet .handle { width: 40px; height: 4px; background: #cbd5e1; border-radius: 2px; align-self: center; }
+.pin {
+  width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; display: flex; align-items: center;
+  justify-content: center; font-size: 16px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); cursor: pointer;
+}
+.pin-me { width: 18px; height: 18px; background: #1d4ed8; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 10px rgba(59, 130, 246, 0.25); }
+
+/* ---------- Safety ---------- */
+.safe-ring { display: flex; align-items: center; justify-content: center; margin: 4px auto; width: 190px; height: 190px; border-radius: 50%; background: rgba(22, 163, 74, 0.1); }
+.safe-ring > div { width: 156px; height: 156px; border-radius: 50%; background: rgba(22, 163, 74, 0.18); display: flex; align-items: center; justify-content: center; }
+.safe-button {
+  width: 124px; height: 124px; border-radius: 50%; border: 0; background: #16a34a; color: #fff; font-family: inherit;
+  font-size: 17px; font-weight: 800; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
+}
+.safe-button:active { transform: scale(0.96); }
+.avatar { width: 38px; height: 38px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+
+/* ---------- Result pages ---------- */
+.result { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; background: #fff; }
+.result-icon { width: 150px; height: 150px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.result-icon > div { width: 110px; height: 110px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 52px; }
+.result h1 { font-size: 24px; font-weight: 800; margin: 0; }
+.result .details { background: #f8fafc; border-radius: 14px; padding: 14px; width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: left; font-size: 13px; }
+.result ion-button { width: 100%; }
+
+/* ---------- Auth ---------- */
+.auth { padding: 32px 24px; display: flex; flex-direction: column; gap: 14px; }
+.auth .logo { width: 64px; height: 64px; border-radius: 18px; background: #1d4ed8; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 34px; }
+.auth h1 { font-size: 26px; font-weight: 800; margin: 8px 0 0; }
+
+/* Report tab stands out in red */
+ion-tab-button.tab-report { --color: #dc2626; --color-selected: #dc2626; }
+
+/* Live View (camera + arrow to an evacuation center) */
+.live-view { position: relative; width: 100%; height: 100%; background: #000; color: #fff; overflow: hidden; }
+.live-view video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.live-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; background: linear-gradient(rgba(0,0,0,0.6), transparent); }
+.live-top ion-select { color: #fff; font-weight: 700; max-width: 75%; }
+.live-bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 16px 28px; text-align: center; background: linear-gradient(transparent, rgba(0,0,0,0.75)); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.live-arrow { width: 84px; height: 84px; border-radius: 50%; background: rgba(22, 163, 74, 0.92); display: grid; place-items: center; font-size: 52px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); transition: transform 0.15s linear; }
+.live-pin { position: absolute; top: 38%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; transition: left 0.15s linear; }
+.live-pin-label { background: #16a34a; padding: 8px 12px; border-radius: 12px; font-weight: 700; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+.live-pin-label small { display: block; font-weight: 500; opacity: 0.9; }
+.live-pin-stem { width: 3px; height: 70px; background: #16a34a; }

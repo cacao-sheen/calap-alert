@@ -1,0 +1,7 @@
+{
+  "name": "calap-alert-mobile",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}

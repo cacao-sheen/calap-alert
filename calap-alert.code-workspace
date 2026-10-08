@@ -1,0 +1,20 @@
+{
+  "folders": [
+    { "name": "📄 Calap Alert (README)", "path": "." },
+    { "name": "🛠 backend (API)", "path": "backend" },
+    { "name": "📱 mobile (Ionic resident app)", "path": "mobile" },
+    { "name": "🖥 admin (Ionic web portal)", "path": "admin" }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "backend": true,
+      "mobile": true,
+      "admin": true
+    }
+  },
+  "extensions": {
+    "recommendations": ["ionic.ionic", "esbenp.prettier-vscode", "mtxr.sqltools", "mtxr.sqltools-driver-pg"]
+  }
+}

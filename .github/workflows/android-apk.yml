@@ -1,0 +1,56 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Backend address the app will call (the phone must be able to reach it)
+        default: http://192.168.1.19:4000
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      VITE_API_URL: ${{ inputs.api_url || 'http://192.168.1.19:4000' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+      - run: npm run build
+
+      # The android/ folder is not stored in git, so it is created fresh on every build
+      - run: npx cap add android
+
+      # Camera + location for Live View, and plain http for testing against a local backend
+      - name: Patch AndroidManifest.xml
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application android:usesCleartextTraffic="true"#' $M
+          cat $M
+
+      - run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calap-alert-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
