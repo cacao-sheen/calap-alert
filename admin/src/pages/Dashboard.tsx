@@ -162,7 +162,7 @@ export default function Dashboard() {
                 </div>
                 <div className="grid-2">
                   <Stat label="Wind" value={`${Math.round(weather.windSpeed)} km/h`} />
-                  <Stat label="Gusts" value={`${Math.round(weather.windGusts)} km/h`} />
+                  <Stat label="Gusts" value={weather.windGusts != null ? `${Math.round(weather.windGusts)} km/h` : '—'} />
                   <Stat label="Rain now" value={`${weather.precipitation} mm`} />
                   <Stat label="Humidity" value={`${weather.humidity}%`} />
                 </div>
@@ -171,7 +171,7 @@ export default function Dashboard() {
                     <div key={h.time}>
                       <small>{new Date(h.time).toLocaleTimeString([], { hour: 'numeric' })}</small>
                       <b>{Math.round(h.temperature)}°</b>
-                      <small>{h.rainChance}%</small>
+                      <small>{h.rainChance != null ? `${h.rainChance}%` : weatherText(h.weatherCode)}</small>
                     </div>
                   ))}
                 </div>

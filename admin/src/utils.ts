@@ -69,9 +69,9 @@ export function weatherText(code: number): string {
 // One-line summary of the most important live weather, for the alert banners
 export function weatherHeadline(w: Weather): string {
   const parts = [`${weatherText(w.weatherCode)} ${Math.round(w.temperature)}°C`];
-  parts.push(`Wind ${Math.round(w.windSpeed)} km/h (gusts ${Math.round(w.windGusts)})`);
+  parts.push(`Wind ${Math.round(w.windSpeed)} km/h${w.windGusts != null ? ` (gusts ${Math.round(w.windGusts)})` : ''}`);
   if (w.rainChance != null) parts.push(`Rain chance ${w.rainChance}%`);
-  const warn = w.weatherCode >= 95 ? 'Thunderstorm' : w.windGusts >= 60 ? 'Strong winds' : w.weatherCode >= 65 ? 'Heavy rain' : '';
+  const warn = w.weatherCode >= 95 ? 'Thunderstorm' : (w.windGusts ?? w.windSpeed) >= 60 ? 'Strong winds' : w.weatherCode >= 65 ? 'Heavy rain' : '';
   return `${warn ? `⚠ ${warn} · ` : ''}${parts.join(' · ')}`;
 }
 

@@ -4,14 +4,15 @@ import { httpError } from '../http.js';
 const router = Router();
 
 // Calapan City. Weather comes from Open-Meteo (free, no API key needed).
+// Open-Meteo limits requests per internet address, and free hosts like Render share one address with
+// many apps, so it often answers 429 there. Then we use MET Norway (also free, no key) instead.
 const LAT = 13.4117;
 const LNG = 121.1803;
 const CACHE_MS = 10 * 60 * 1000;
+const USER_AGENT = 'CalapAlert-school-project/1.0 github.com/cacao-sheen/calap-alert';
 let cache = { at: 0, data: null };
 
-async function getWeather() {
-  if (cache.data && Date.now() - cache.at < CACHE_MS) return cache.data;
-
+async function fromOpenMeteo() {
   const params = new URLSearchParams({
     latitude: LAT,
     longitude: LNG,
@@ -20,25 +21,16 @@ async function getWeather() {
     forecast_hours: 12,
     timezone: 'Asia/Manila',
   });
-  let j;
-  try {
-    const resp = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: AbortSignal.timeout(10_000) });
-    if (!resp.ok) throw new Error(`Open-Meteo responded ${resp.status}`);
-    j = await resp.json();
-  } catch (err) {
-    console.warn('Weather fetch failed:', err.message);
-    // Show the last known weather rather than nothing
-    if (cache.data) return { ...cache.data, stale: true };
-    throw httpError(502, 'Weather service is unavailable right now');
-  }
-
+  const resp = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: AbortSignal.timeout(10_000) });
+  if (!resp.ok) throw new Error(`Open-Meteo responded ${resp.status}`);
+  const j = await resp.json();
   const hourly = j.hourly.time.map((time, i) => ({
     time,
     temperature: j.hourly.temperature_2m[i],
     rainChance: j.hourly.precipitation_probability[i],
     weatherCode: j.hourly.weather_code[i],
   }));
-  const data = {
+  return {
     location: 'Calapan City',
     updatedAt: j.current.time,
     temperature: j.current.temperature_2m,
@@ -52,8 +44,73 @@ async function getWeather() {
     hourly,
     source: 'Open-Meteo',
   };
-  cache = { at: Date.now(), data };
-  return data;
+}
+
+// MET Norway describes the sky with words (e.g. "heavyrainshowers_day"); turn them into the same
+// WMO weather codes Open-Meteo uses, so the apps don't need to know which source answered.
+function wmoCode(symbol = '') {
+  const s = symbol.replace(/_(day|night|polartwilight)$/, '');
+  if (s.includes('thunder')) return 95;
+  if (s.includes('snow') || s.includes('sleet')) return 71;
+  if (s === 'heavyrainshowers') return 82;
+  if (s === 'rainshowers') return 81;
+  if (s === 'lightrainshowers') return 80;
+  if (s === 'heavyrain') return 65;
+  if (s === 'rain') return 63;
+  if (s === 'lightrain') return 61;
+  if (s === 'fog') return 45;
+  if (s === 'cloudy') return 3;
+  if (s === 'partlycloudy') return 2;
+  if (s === 'fair') return 1;
+  return 0;
+}
+
+async function fromMetNorway() {
+  const resp = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${LAT}&lon=${LNG}`, {
+    headers: { 'User-Agent': USER_AGENT },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!resp.ok) throw new Error(`MET Norway responded ${resp.status}`);
+  const steps = (await resp.json()).properties.timeseries;
+  // The first step is the current hour
+  const now = steps[0];
+  const d = now.data.instant.details;
+  const kmh = (ms) => Math.round(ms * 3.6 * 10) / 10;
+  return {
+    location: 'Calapan City',
+    updatedAt: now.time,
+    temperature: d.air_temperature,
+    feelsLike: d.apparent_air_temperature ?? d.air_temperature,
+    humidity: d.relative_humidity,
+    precipitation: now.data.next_1_hours?.details?.precipitation_amount ?? 0,
+    windSpeed: kmh(d.wind_speed),
+    windGusts: null, // MET Norway has no gusts or rain chance for the Philippines
+    weatherCode: wmoCode(now.data.next_1_hours?.summary?.symbol_code),
+    rainChance: null,
+    hourly: steps.slice(0, 12).map((s) => ({
+      time: s.time,
+      temperature: s.data.instant.details.air_temperature,
+      rainChance: null,
+      weatherCode: wmoCode(s.data.next_1_hours?.summary?.symbol_code),
+    })),
+    source: 'MET Norway',
+  };
+}
+
+async function getWeather() {
+  if (cache.data && Date.now() - cache.at < CACHE_MS) return cache.data;
+  for (const source of [fromOpenMeteo, fromMetNorway]) {
+    try {
+      const data = await source();
+      cache = { at: Date.now(), data };
+      return data;
+    } catch (err) {
+      console.warn('Weather fetch failed:', err.message);
+    }
+  }
+  // Show the last known weather rather than nothing
+  if (cache.data) return { ...cache.data, stale: true };
+  throw httpError(502, 'Weather service is unavailable right now');
 }
 
 router.get('/', async (req, res) => {
@@ -121,7 +178,7 @@ router.get('/event', async (req, res) => {
     return res.json({
       kind: 'rain',
       title: `${level} in Calapan City`,
-      description: `${w.precipitation} mm of rain in the last hour · wind ${Math.round(w.windSpeed)} km/h, gusts ${Math.round(w.windGusts)} km/h · rain chance ${w.rainChance ?? '—'}%.`,
+      description: `${w.precipitation} mm of rain in the last hour · wind ${Math.round(w.windSpeed)} km/h, gusts ${w.windGusts == null ? '—' : `${Math.round(w.windGusts)} km/h`} · rain chance ${w.rainChance == null ? '—' : `${w.rainChance}%`}.`,
       source: 'Open-Meteo',
       url: null,
       updatedAt: w.updatedAt,
@@ -131,7 +188,9 @@ router.get('/event', async (req, res) => {
   res.json({
     kind: 'none',
     title: 'No typhoon or rain right now',
-    description: w ? `No rain at the moment in Calapan City · ${w.rainChance ?? '—'}% chance of rain in the next hour.` : 'Weather service is unavailable right now.',
+    description: !w ? 'Weather service is unavailable right now.'
+      : w.rainChance == null ? 'No rain at the moment in Calapan City.'
+      : `No rain at the moment in Calapan City · ${w.rainChance}% chance of rain in the next hour.`,
     source: 'GDACS / Open-Meteo',
     url: null,
     updatedAt: w?.updatedAt ?? null,

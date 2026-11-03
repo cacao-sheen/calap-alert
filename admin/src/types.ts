@@ -24,11 +24,11 @@ export type Weather = {
   humidity: number;
   precipitation: number;
   windSpeed: number;
-  windGusts: number;
+  windGusts: number | null; // null when the backup weather source answered
   weatherCode: number;
   rainChance: number | null;
   updatedAt: string;
-  hourly: { time: string; temperature: number; rainChance: number; weatherCode: number }[];
+  hourly: { time: string; temperature: number; rainChance: number | null; weatherCode: number }[];
   source: string;
 };
 

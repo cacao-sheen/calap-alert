@@ -161,15 +161,15 @@ export default function Home() {
               <>
                 <div className="stats" style={{ margin: '14px 0 12px' }}>
                   <div className="stat"><div className="label"><IonIcon icon={speedometerOutline} />Wind</div><div className="value">{Math.round(weather.windSpeed)} km/h</div></div>
-                  <div className="stat"><div className="label"><IonIcon icon={rainyOutline} />Rain</div><div className="value">{weather.rainChance ?? 0}%</div></div>
-                  <div className="stat"><div className="label"><IonIcon icon={waterOutline} />Gusts</div><div className="value" style={{ color: weather.windGusts > 60 ? '#dc2626' : undefined }}>{Math.round(weather.windGusts)} km/h</div></div>
+                  <div className="stat"><div className="label"><IonIcon icon={rainyOutline} />Rain</div><div className="value">{weather.rainChance != null ? `${weather.rainChance}%` : '—'}</div></div>
+                  <div className="stat"><div className="label"><IonIcon icon={waterOutline} />Gusts</div><div className="value" style={{ color: (weather.windGusts ?? 0) > 60 ? '#dc2626' : undefined }}>{weather.windGusts != null ? `${Math.round(weather.windGusts)} km/h` : '—'}</div></div>
                 </div>
                 <div className="hourly">
                   {weather.hourly.filter((_, i) => i % 3 === 0).slice(0, 4).map((h) => (
                     <div key={h.time}>
                       <span className="muted">{new Date(h.time).toLocaleTimeString([], { hour: 'numeric' })}</span>
                       <b>{Math.round(h.temperature)}°</b>
-                      <span className="muted">{h.rainChance}%</span>
+                      <span className="muted">{h.rainChance != null ? `${h.rainChance}%` : weatherText(h.weatherCode)}</span>
                     </div>
                   ))}
                 </div>
