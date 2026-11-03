@@ -91,11 +91,11 @@ export default function Dashboard() {
               </p>
             </>
           ) : <p>Checking the weather…</p>}
-          {event && <p className="banner-weather">Resident alert: {event.signalLevel ? `Signal No. ${event.signalLevel} · ` : ''}{event.name} (started {timeOf(event.startedAt)})</p>}
+          {event && <p className="banner-weather">Disaster check-in running: {event.signalLevel ? `Signal No. ${event.signalLevel} · ` : ''}{event.name} (started {timeOf(event.startedAt)}) — see Active alerts below to end it</p>}
         </div>
       </div>
 
-      {alerts.length > 0 && <ActiveAlerts alerts={alerts} onEnded={load} />}
+      {(alerts.length > 0 || event) && <ActiveAlerts alerts={alerts} event={event} onEnded={load} />}
 
       <section className="kpis">
         <Kpi label="Total Residents" value={fmt(totals.residents)} sub={`${summary.barangays.length} barangays · ${fmt(totals.households)} households`} />
@@ -210,7 +210,7 @@ export default function Dashboard() {
 }
 
 // Alerts residents can still see on their Home screen. Ending one removes it and tells their phones it's over.
-function ActiveAlerts({ alerts, onEnded }: { alerts: Alert[]; onEnded: () => void }) {
+function ActiveAlerts({ alerts, event, onEnded }: { alerts: Alert[]; event: DisasterEvent | null; onEnded: () => void }) {
   const [confirm] = useIonAlert();
   const [toast] = useIonToast();
 
@@ -235,13 +235,43 @@ function ActiveAlerts({ alerts, onEnded }: { alerts: Alert[]; onEnded: () => voi
       ],
     });
 
+  // The disaster check-in is separate from alerts: it is what asks residents "Are you safe?"
+  const endCheckIn = () =>
+    confirm({
+      header: 'End the disaster check-in?',
+      message: `Residents will no longer be asked if they are safe for "${event?.name}". Their answers are kept, and everyone starts as "not checked in" next time.`,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'End check-in',
+          role: 'destructive',
+          handler: () => {
+            api('/events/active/end', { method: 'POST' })
+              .then(() => { toast({ message: 'Disaster check-in ended', duration: 2500, color: 'success' }); onEnded(); })
+              .catch((e) => toast({ message: e.message, duration: 3000, color: 'danger' }));
+          },
+        },
+      ],
+    });
+
   return (
     <IonCard className="panel">
       <IonCardHeader className="between">
         <IonCardTitle>Active alerts<small className="section-hint">Residents see these on their Home screen until you end them</small></IonCardTitle>
-        <IonBadge color="danger">{alerts.length} active</IonBadge>
+        <IonBadge color="danger">{alerts.length + (event ? 1 : 0)} active</IonBadge>
       </IonCardHeader>
       <IonList lines="full">
+        {event && (
+          <IonItem>
+            <span slot="start" className="type-chip" style={{ background: '#b45309' }}><IonIcon icon={thunderstormOutline} /></span>
+            <IonLabel className="ion-text-wrap">
+              <h3><b>{event.name}</b><IonBadge color="warning" className="tag">Disaster check-in</IonBadge></h3>
+              <p>{event.signalLevel ? `Signal No. ${event.signalLevel}. ` : ''}Residents are asked to tap "I'm safe", "Evacuated" or "I need help".</p>
+              <p className="small">Started {timeOf(event.startedAt)}</p>
+            </IonLabel>
+            <IonButton slot="end" color="danger" fill="outline" size="small" onClick={endCheckIn}>End check-in</IonButton>
+          </IonItem>
+        )}
         {alerts.map((a) => (
           <IonItem key={a.id}>
             <span slot="start" className="type-chip" style={{ background: a.evacuate || a.level === 'danger' ? '#b91c1c' : a.level === 'warning' ? '#b45309' : '#1e40af' }}>
