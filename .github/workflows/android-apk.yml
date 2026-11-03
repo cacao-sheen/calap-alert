@@ -7,7 +7,7 @@ on:
     inputs:
       api_url:
         description: Backend address the app will call (the phone must be able to reach it)
-        default: http://192.168.1.19:4000
+        default: https://calap-alert-api.onrender.com
 
 jobs:
   apk:
@@ -16,7 +16,7 @@ jobs:
       run:
         working-directory: mobile
     env:
-      VITE_API_URL: ${{ inputs.api_url || 'http://192.168.1.19:4000' }}
+      VITE_API_URL: ${{ inputs.api_url || 'https://calap-alert-api.onrender.com' }}
     steps:
       - uses: actions/checkout@v4
 
