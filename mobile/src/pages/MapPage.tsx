@@ -136,6 +136,16 @@ export default function MapPage() {
     if (c && map.current) map.current.flyTo({ center: [c.lng, c.lat], zoom: 17.5 });
   }, [location.search, centers]);
 
+  // Opened by tapping an evacuation notification (/tabs/map?live=1): go straight to Live View.
+  // location.key changes on every tap, so a second notification opens it again.
+  const liveOpenedFor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('live') !== '1' || !centers.length) return;
+    if (liveOpenedFor.current === location.key) return;
+    liveOpenedFor.current = location.key;
+    allowCompass().then(() => setLiveOpen(true));
+  }, [location.key, location.search, centers.length]);
+
   useEffect(() => {
     map.current?.easeTo({ pitch: mode === '3d' ? 55 : 0, bearing: mode === '3d' ? -20 : 0, duration: 800 });
   }, [mode]);

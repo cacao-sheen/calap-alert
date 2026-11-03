@@ -37,12 +37,17 @@ jobs:
       # The android/ folder is not stored in git, so it is created fresh on every build
       - run: npx cap add android
 
-      # Camera + location for Live View, and plain http for testing against a local backend
+      # Camera + location for Live View, notifications for alerts, and plain http for testing against a local backend
       - name: Patch AndroidManifest.xml
         run: |
           M=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application android:usesCleartextTraffic="true"#' $M
+          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application android:usesCleartextTraffic="true"#' $M
           cat $M
+
+      # Firebase config for push notifications (mobile/google-services.json, from the Firebase console)
+      - name: Add Firebase config
+        run: |
+          if [ -f google-services.json ]; then cp google-services.json android/app/; echo "Push notifications ON"; else echo "No google-services.json: push notifications OFF"; fi
 
       - run: npx cap sync android
 

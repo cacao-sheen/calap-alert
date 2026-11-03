@@ -2,7 +2,7 @@
 -- Covers Brgy. Ibaba East and Brgy. Ibaba West, Calapan City.
 -- WARNING: running this file DELETES the existing tables and their data.
 
-DROP TABLE IF EXISTS incident_updates, incidents, safety_checkins, alerts,
+DROP TABLE IF EXISTS push_tokens, incident_updates, incidents, safety_checkins, alerts,
   disaster_events, users, residents, households, evacuation_centers, barangays CASCADE;
 
 CREATE TABLE barangays (
@@ -126,6 +126,15 @@ CREATE TABLE alerts (
   message     TEXT NOT NULL,
   level       TEXT NOT NULL DEFAULT 'warning' CHECK (level IN ('info', 'warning', 'danger')),
   barangay_id INT  REFERENCES barangays(id),   -- NULL = both barangays
+  evacuate    BOOLEAN NOT NULL DEFAULT false,  -- evacuation order: tapping the notification opens Live View
   created_by  INT  REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Phones that get push notifications (Firebase Cloud Messaging tokens)
+CREATE TABLE push_tokens (
+  token       TEXT PRIMARY KEY,
+  user_id     INT  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  barangay_id INT  REFERENCES barangays(id),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

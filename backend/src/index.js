@@ -11,6 +11,7 @@ import incidentRoutes from './routes/incidents.js';
 import checkinRoutes from './routes/checkins.js';
 import residentRoutes from './routes/residents.js';
 import dashboardRoutes from './routes/dashboard.js';
+import pushRoutes from './routes/push.js';
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/checkins', checkinRoutes);
 app.use('/api/residents', residentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/push', pushRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 

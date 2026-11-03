@@ -6,3 +6,6 @@ dist/
 .idea/
 # Created by "npx cap add android" (the APK workflow makes it fresh)
 mobile/android/
+# Firebase service-account keys are secret (google-services.json is fine to commit)
+*firebase-adminsdk*.json
+service-account*.json

@@ -47,6 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login: async (email, password) => save(await api('/auth/login', { method: 'POST', body: { email, password } })),
     register: async (data) => save(await api('/auth/register', { method: 'POST', body: data })),
     logout: () => {
+      // This phone should stop getting this resident's alerts (sent before the login token is removed)
+      const pushToken = localStorage.getItem('pushToken');
+      if (pushToken) {
+        api('/push/unregister', { method: 'POST', body: { token: pushToken } }).catch(() => {});
+        localStorage.removeItem('pushToken');
+      }
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);

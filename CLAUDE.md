@@ -22,7 +22,10 @@ School final project. The student is a beginner: explain steps simply, one comma
 - Schema: `backend/db/schema.sql`. Setup: `backend/scripts/setup-db.js` (`npm run db:setup` — **erases all data**; creates only the 2 barangays + 1 admin, no sample data). Change the admin password with `npm run admin:password -- <email> "<new password>"`.
 - Safety status per resident = latest `safety_checkins` row for the active `disaster_events` row; no row = `unaccounted`.
 - Errors meant for users: `throw httpError(status, message)` from `src/http.js`. Express 5 catches async errors.
-- Env vars in `backend/.env` (copy from `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGIN`. Never commit `.env`.
+- Env vars in `backend/.env` (copy from `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGIN`, `FIREBASE_SERVICE_ACCOUNT` (push notifications, optional). Never commit `.env`.
+- Adding tables/columns to a database that has real data: add the change to `schema.sql` AND `scripts/migrate.js` (`npm run db:migrate`, never deletes data). `db:setup` erases everything.
+- Hosting: `render.yaml` runs the API (https://calap-alert-api.onrender.com) and the admin site (https://calap-alert-admin.onrender.com). Pushing to `main` redeploys both and builds the APK (GitHub Actions).
+- Push notifications: `@capacitor/push-notifications` + Firebase Cloud Messaging. Sent from `backend/src/push.js` when an alert is posted; the app turns them on only if `mobile/google-services.json` exists (`__PUSH_ENABLED__` in `vite.config.ts`). The notification's `data.route` is the page opened on tap (`/tabs/map?live=1` = Live View).
 
 ## Commands
 ```

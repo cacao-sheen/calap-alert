@@ -3,7 +3,7 @@ import {
   useIonRouter,
 } from '@ionic/react';
 import {
-  businessOutline, callOutline, checkmarkCircle, cloudOutline, handLeftOutline, mapOutline, megaphone,
+  businessOutline, callOutline, navigateOutline, checkmarkCircle, cloudOutline, handLeftOutline, mapOutline, megaphone,
   rainyOutline, shieldCheckmark, speedometerOutline, thunderstorm, warningOutline, waterOutline,
 } from 'ionicons/icons';
 import { useEffect, useState } from 'react';
@@ -64,7 +64,7 @@ export default function Home() {
 
   const go = (path: string) => router.push(path);
   const myStatus = status?.status ?? 'unaccounted';
-  const alertLevel = event?.signalLevel ? 'danger' : alert?.level ?? 'info';
+  const alertLevel = event?.signalLevel || alert?.evacuate ? 'danger' : alert?.level ?? 'info';
 
   return (
     <IonPage>
@@ -98,10 +98,15 @@ export default function Home() {
             <div className={`alert-banner ${alertLevel}`} onClick={() => go('/tabs/evac')}>
               <IonIcon icon={megaphone} />
               <div className="grow">
-                <div className="kicker">{event?.signalLevel ? `Typhoon Signal No. ${event.signalLevel}` : 'Barangay alert'}</div>
-                <b>{event ? event.name : alert?.title}</b>
-                <p>{event ? event.description : alert?.message}</p>
+                <div className="kicker">{alert?.evacuate ? 'Evacuation order' : event?.signalLevel ? `Typhoon Signal No. ${event.signalLevel}` : 'Barangay alert'}</div>
+                <b>{alert?.evacuate || !event ? alert?.title : event.name}</b>
+                <p>{alert?.evacuate || !event ? alert?.message : event.description}</p>
                 {alert && event && <p className="small">Latest: {alert.title} · {timeAgo(alert.createdAt)}</p>}
+                {alert?.evacuate && (
+                  <IonButton color="danger" size="small" style={{ marginTop: 10 }} onClick={(e) => { e.stopPropagation(); go('/tabs/map?live=1'); }}>
+                    <IonIcon slot="start" icon={navigateOutline} />Go to evacuation center
+                  </IonButton>
+                )}
               </div>
             </div>
           )}

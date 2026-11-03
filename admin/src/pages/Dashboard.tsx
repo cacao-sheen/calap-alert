@@ -325,6 +325,7 @@ function AlertForm({ isOpen, barangays, event, onClose, onSaved, onManageEvent }
   const [startEvent, setStartEvent] = useState(false);
   const [eventName, setEventName] = useState('Typhoon ');
   const [signal, setSignal] = useState('1');
+  const [evacuate, setEvacuate] = useState(false);
 
   async function send(e: FormEvent) {
     e.preventDefault();
@@ -333,11 +334,16 @@ function AlertForm({ isOpen, barangays, event, onClose, onSaved, onManageEvent }
       if (startEvent && !event) {
         await api('/events/active', { method: 'PUT', body: { name: eventName, signalLevel: signal === 'none' ? null : Number(signal), description: message } });
       }
-      await api('/alerts', { method: 'POST', body: { title, message, level, barangayId: barangayId === 'all' ? null : Number(barangayId) } });
-      toast({ message: startEvent && !event ? 'Disaster started and alert sent' : 'Alert sent to residents', duration: 2000, color: 'success' });
+      const sent = await api<{ push?: { sent: number; reason?: string } }>('/alerts', {
+        method: 'POST',
+        body: { title, message, level: evacuate ? 'danger' : level, evacuate, barangayId: barangayId === 'all' ? null : Number(barangayId) },
+      });
+      const phones = sent.push?.reason ?? `Notification sent to ${sent.push?.sent ?? 0} phone(s).`;
+      toast({ message: `${startEvent && !event ? 'Disaster started and alert posted' : 'Alert posted'}. ${phones}`, duration: 4000, color: sent.push?.reason ? 'warning' : 'success' });
       setTitle('');
       setMessage('');
       setStartEvent(false);
+      setEvacuate(false);
       onSaved();
       onClose();
     } catch (err) {
@@ -352,12 +358,22 @@ function AlertForm({ isOpen, barangays, event, onClose, onSaved, onManageEvent }
           <IonSelectOption value="all">Both barangays</IonSelectOption>
           {barangays.map((b) => <IonSelectOption key={b.id} value={String(b.id)}>Brgy. {b.name} only</IonSelectOption>)}
         </IonSelect>
+        <div className={`confirm-card evac-toggle ${evacuate ? 'on' : ''}`}>
+          <IonToggle checked={evacuate} onIonChange={(e) => setEvacuate(e.detail.checked)} color="danger">
+            <b>Evacuation order</b>
+          </IonToggle>
+          <p className="small muted" style={{ margin: '6px 0 0' }}>
+            Residents get a phone notification even if the app is closed. Tapping it opens Live View, which guides them to the nearest open evacuation center.
+          </p>
+        </div>
+        {!evacuate && (
         <IonSelect label="Level" labelPlacement="stacked" fill="outline" value={level} onIonChange={(e) => setLevel(e.detail.value)}>
           <IonSelectOption value="info">Info</IonSelectOption>
           <IonSelectOption value="warning">Warning</IonSelectOption>
           <IonSelectOption value="danger">Danger</IonSelectOption>
         </IonSelect>
-        <IonInput label="Title" labelPlacement="stacked" fill="outline" value={title} onIonInput={(e) => setTitle(e.detail.value ?? '')} required placeholder="e.g. Pre-emptive evacuation" />
+        )}
+        <IonInput label="Title" labelPlacement="stacked" fill="outline" value={title} onIonInput={(e) => setTitle(e.detail.value ?? '')} required placeholder={evacuate ? 'e.g. Go to the nearest evacuation center now' : 'e.g. Heavy rain this afternoon'} />
         <IonTextarea label="Message" labelPlacement="stacked" fill="outline" rows={4} value={message} onIonInput={(e) => setMessage(e.detail.value ?? '')} required />
 
         {event ? (
@@ -382,8 +398,8 @@ function AlertForm({ isOpen, barangays, event, onClose, onSaved, onManageEvent }
           </>
         )}
 
-        <p className="muted small">Residents see the alert on the Calap Alert app's Home screen.</p>
-        <IonButton type="submit" expand="block" color="danger"><IonIcon slot="start" icon={megaphoneOutline} />Send alert</IonButton>
+        <p className="muted small">Residents see it on the app's Home screen and get a notification on their phone.</p>
+        <IonButton type="submit" expand="block" color="danger"><IonIcon slot="start" icon={megaphoneOutline} />{evacuate ? 'Send evacuation order' : 'Send alert'}</IonButton>
       </form>
     </FormModal>
   );

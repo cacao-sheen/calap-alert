@@ -270,3 +270,6 @@ ion-segment { border-radius: var(--r-md); }
 .empty ion-icon { font-size: 32px; }
 .page h1 { letter-spacing: -0.01em; }
 .admin-toolbar ion-title { letter-spacing: -0.01em; }
+.evac-toggle { margin-top: 0; }
+.evac-toggle.on { border-color: #fecaca; background: #fef2f2; }
+.ion-palette-dark .evac-toggle.on { background: rgba(220, 38, 38, 0.12); border-color: rgba(248, 113, 113, 0.4); }

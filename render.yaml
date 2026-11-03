@@ -16,6 +16,8 @@ services:
         sync: false          # secret: you paste it in Render, it is never stored in git
       - key: JWT_SECRET
         generateValue: true  # Render makes a long random secret for logins
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false          # secret: Firebase service-account JSON, pasted in Render, for phone notifications
 
   # Admin portal as a free static website (always on, never sleeps)
   - type: web
