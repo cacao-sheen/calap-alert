@@ -47,6 +47,7 @@ export type Alert = {
   message: string;
   level: 'info' | 'warning' | 'danger';
   evacuate: boolean; // evacuation order: show the way to the nearest center
+  endedAt: string | null; // set when the admin ends the alert
   barangay: string | null;
   createdAt: string;
 };

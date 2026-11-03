@@ -12,6 +12,8 @@ const STEPS = [
    )`,
   // Evacuation orders open Live View when the notification is tapped
   'ALTER TABLE alerts ADD COLUMN IF NOT EXISTS evacuate BOOLEAN NOT NULL DEFAULT false',
+  // The admin can end an alert; ended alerts leave the Home screen but stay in the notifications list
+  'ALTER TABLE alerts ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ',
 ];
 
 try {

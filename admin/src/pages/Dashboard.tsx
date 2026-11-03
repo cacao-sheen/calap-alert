@@ -2,7 +2,7 @@ import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonInput, IonItem,
   IonLabel, IonList, IonSelect, IonSpinner, IonSelectOption, IonTextarea, IonToggle, useIonAlert, useIonRouter, useIonToast,
 } from '@ionic/react';
-import { checkmarkCircle, locationOutline, megaphoneOutline, rainyOutline, thunderstormOutline, warningOutline } from 'ionicons/icons';
+import { checkmarkCircle, locationOutline, megaphoneOutline, rainyOutline, thunderstormOutline, walkOutline, warningOutline } from 'ionicons/icons';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import AdminPage from '../components/AdminPage';
@@ -11,7 +11,7 @@ import TypeIcon from '../components/TypeIcon';
 import FormModal from '../components/FormModal';
 import MapView from '../components/MapView';
 import { usePageLoad } from '../hooks';
-import type { BarangayStats, DisasterEvent, EvacCenter, Incident, Summary, Weather, WeatherEvent } from '../types';
+import type { Alert, BarangayStats, DisasterEvent, EvacCenter, Incident, Summary, Weather, WeatherEvent } from '../types';
 import { centerState, fmt, INCIDENT_INFO, INCIDENT_STATUS, pct, placeName, timeOf, weatherText } from '../utils';
 
 export default function Dashboard() {
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [centers, setCenters] = useState<EvacCenter[]>([]);
   const [error, setError] = useState('');
   const [modal, setModal] = useState<'event' | 'alert' | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +38,7 @@ export default function Dashboard() {
       setError('');
       api<Weather>('/weather').then(setWeather).catch(() => setWeather(null));
       api<WeatherEvent>('/weather/event').then(setWeatherEvent).catch(() => setWeatherEvent(null));
+      api<Alert[]>('/alerts?active=1&limit=50').then(setAlerts).catch(() => setAlerts([]));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -92,6 +94,8 @@ export default function Dashboard() {
           {event && <p className="banner-weather">Resident alert: {event.signalLevel ? `Signal No. ${event.signalLevel} · ` : ''}{event.name} (started {timeOf(event.startedAt)})</p>}
         </div>
       </div>
+
+      {alerts.length > 0 && <ActiveAlerts alerts={alerts} onEnded={load} />}
 
       <section className="kpis">
         <Kpi label="Total Residents" value={fmt(totals.residents)} sub={`${summary.barangays.length} barangays · ${fmt(totals.households)} households`} />
@@ -202,6 +206,59 @@ export default function Dashboard() {
       <EventForm isOpen={modal === 'event'} event={event} onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} />
       <AlertForm isOpen={modal === 'alert'} barangays={summary.barangays} event={event} onClose={() => setModal(null)} onSaved={load} onManageEvent={() => setModal('event')} />
     </AdminPage>
+  );
+}
+
+// Alerts residents can still see on their Home screen. Ending one removes it and tells their phones it's over.
+function ActiveAlerts({ alerts, onEnded }: { alerts: Alert[]; onEnded: () => void }) {
+  const [confirm] = useIonAlert();
+  const [toast] = useIonToast();
+
+  const end = (a: Alert) =>
+    confirm({
+      header: a.evacuate ? 'Lift this evacuation order?' : 'End this alert?',
+      message: `"${a.title}" will be removed from residents' Home screen and they will get an "${a.evacuate ? 'All clear' : 'Alert ended'}" notification.`,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: a.evacuate ? 'Lift order' : 'End alert',
+          role: 'destructive',
+          handler: () => {
+            api<{ push?: { sent: number; reason?: string } }>(`/alerts/${a.id}/end`, { method: 'POST' })
+              .then((r) => {
+                toast({ message: `Alert ended. ${r.push?.reason ?? `Notification sent to ${r.push?.sent ?? 0} phone(s).`}`, duration: 3500, color: 'success' });
+                onEnded();
+              })
+              .catch((e) => toast({ message: e.message, duration: 3000, color: 'danger' }));
+          },
+        },
+      ],
+    });
+
+  return (
+    <IonCard className="panel">
+      <IonCardHeader className="between">
+        <IonCardTitle>Active alerts<small className="section-hint">Residents see these on their Home screen until you end them</small></IonCardTitle>
+        <IonBadge color="danger">{alerts.length} active</IonBadge>
+      </IonCardHeader>
+      <IonList lines="full">
+        {alerts.map((a) => (
+          <IonItem key={a.id}>
+            <span slot="start" className="type-chip" style={{ background: a.evacuate || a.level === 'danger' ? '#b91c1c' : a.level === 'warning' ? '#b45309' : '#1e40af' }}>
+              <IonIcon icon={a.evacuate ? walkOutline : megaphoneOutline} />
+            </span>
+            <IonLabel className="ion-text-wrap">
+              <h3><b>{a.title}</b>{a.evacuate && <IonBadge color="danger" className="tag">Evacuation order</IonBadge>}</h3>
+              <p>{a.message}</p>
+              <p className="small">{a.barangay ? `Brgy. ${a.barangay}` : 'Both barangays'} · sent {timeOf(a.createdAt)}</p>
+            </IonLabel>
+            <IonButton slot="end" color="danger" fill="outline" size="small" onClick={() => end(a)}>
+              {a.evacuate ? 'Lift order' : 'End alert'}
+            </IonButton>
+          </IonItem>
+        ))}
+      </IonList>
+    </IonCard>
   );
 }
 

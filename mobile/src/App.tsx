@@ -6,6 +6,7 @@ import { businessOutline, homeOutline, mapOutline, personCircleOutline, warning 
 import { Redirect, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import PushSetup from './components/PushSetup';
+import Alerts from './pages/Alerts';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import MapPage from './pages/MapPage';
@@ -39,6 +40,7 @@ function Tabs() {
         <Route exact path="/tabs/evac" component={Evac} />
         <Route exact path="/tabs/me" component={Safety} />
         <Route exact path="/tabs/result/:kind" component={Result} />
+        <Route exact path="/tabs/alerts" component={Alerts} />
         <Route exact path="/tabs">
           <Redirect to="/tabs/home" />
         </Route>

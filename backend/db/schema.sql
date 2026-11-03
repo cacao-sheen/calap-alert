@@ -128,7 +128,8 @@ CREATE TABLE alerts (
   barangay_id INT  REFERENCES barangays(id),   -- NULL = both barangays
   evacuate    BOOLEAN NOT NULL DEFAULT false,  -- evacuation order: tapping the notification opens Live View
   created_by  INT  REFERENCES users(id) ON DELETE SET NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at    TIMESTAMPTZ                      -- set when the admin ends the alert
 );
 
 -- Phones that get push notifications (Firebase Cloud Messaging tokens)

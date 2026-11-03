@@ -46,6 +46,9 @@ ion-tab-button.tab-report ion-icon { width: 18px; height: 18px; min-width: 18px;
 .hero h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
 .hero .sub { color: #bfdbfe; font-size: 13px; display: flex; align-items: center; gap: 4px; }
 .overlap { margin-top: -40px; }
+.bell { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.16); color: #fff; font-size: 22px; display: inline-flex; align-items: center; justify-content: center; }
+.bell i { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: #ef4444; border: 2px solid #1e40af; }
+.notif { border-left: 4px solid; padding: 14px; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); font-size: 12px; font-weight: 500; }
 .status-pill i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 

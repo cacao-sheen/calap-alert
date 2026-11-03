@@ -3,12 +3,13 @@ import {
   useIonRouter,
 } from '@ionic/react';
 import {
-  businessOutline, callOutline, navigateOutline, checkmarkCircle, cloudOutline, handLeftOutline, mapOutline, megaphone,
+  businessOutline, callOutline, navigateOutline, notificationsOutline, checkmarkCircle, cloudOutline, handLeftOutline, mapOutline, megaphone,
   rainyOutline, shieldCheckmark, speedometerOutline, thunderstorm, warningOutline, waterOutline,
 } from 'ionicons/icons';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import LogoMark from '../components/LogoMark';
+import { SEEN_KEY } from './Alerts';
 import { usePageLoad } from '../hooks';
 import type { Alert, DisasterEvent, ResidentStatus, Weather, WeatherEvent } from '../types';
 import { STATUS_LABEL, timeAgo, weatherText } from '../utils';
@@ -31,23 +32,24 @@ export default function Home() {
   const [alert, setAlert] = useState<Alert | null>(null);
   const [status, setStatus] = useState<ResidentStatus | null>(null);
   const [error, setError] = useState('');
+  const [unread, setUnread] = useState(false);
 
   async function load() {
     setError('');
     try {
       const profile = await api<Me>('/auth/me');
       setMe(profile);
-      const [w, ev, s, alerts] = await Promise.all([
-        api<Weather>('/weather').catch(() => null),
-        api<WeatherEvent>('/weather/event').catch(() => null),
+      // Weather can be slow; load it on its own so alerts never wait for it
+      api<Weather>('/weather').then(setWeather).catch(() => setWeather(null));
+      api<WeatherEvent>('/weather/event').then(setLive).catch(() => setLive(null));
+      const [s, alerts] = await Promise.all([
         api<{ event: DisasterEvent | null; me: ResidentStatus | null }>('/checkins/me'),
-        api<Alert[]>(`/alerts?barangayId=${profile.barangayId}`),
+        api<Alert[]>(`/alerts?barangayId=${profile.barangayId}&active=1`),
       ]);
-      setWeather(w);
-      setLive(ev);
       setEvent(s.event);
       setStatus(s.me);
       setAlert(alerts[0] ?? null);
+      setUnread(!!alerts[0] && alerts[0].id > Number(localStorage.getItem(SEEN_KEY) ?? 0));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -76,7 +78,11 @@ export default function Home() {
         <div className="hero">
           <div className="hero-brand">
             <span className="logo-tile"><LogoMark size={26} /></span>
-            Calap Alert
+            <span className="grow">Calap Alert</span>
+            <button className="bell" onClick={() => go('/tabs/alerts')} aria-label="Notifications">
+              <IonIcon icon={notificationsOutline} />
+              {unread && <i />}
+            </button>
           </div>
           <h1>{greeting()}{me ? `, ${me.firstName}!` : '!'}</h1>
           <div className="sub">
@@ -95,13 +101,13 @@ export default function Home() {
 
           {/* Message from the barangay / CDRRMO */}
           {(event || alert) && (
-            <div className={`alert-banner ${alertLevel}`} onClick={() => go('/tabs/evac')}>
+            <div className={`alert-banner ${alertLevel}`} onClick={() => go(alert ? '/tabs/alerts' : '/tabs/evac')}>
               <IonIcon icon={megaphone} />
               <div className="grow">
                 <div className="kicker">{alert?.evacuate ? 'Evacuation order' : event?.signalLevel ? `Typhoon Signal No. ${event.signalLevel}` : 'Barangay alert'}</div>
                 <b>{alert?.evacuate || !event ? alert?.title : event.name}</b>
                 <p>{alert?.evacuate || !event ? alert?.message : event.description}</p>
-                {alert && event && <p className="small">Latest: {alert.title} · {timeAgo(alert.createdAt)}</p>}
+                {alert && event && !alert.evacuate && <p className="small">Latest: {alert.title} · {timeAgo(alert.createdAt)}</p>}
                 {alert?.evacuate && (
                   <IonButton color="danger" size="small" style={{ marginTop: 10 }} onClick={(e) => { e.stopPropagation(); go('/tabs/map?live=1'); }}>
                     <IonIcon slot="start" icon={navigateOutline} />Go to evacuation center

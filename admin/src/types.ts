@@ -1,5 +1,17 @@
 export type Barangay = { id: number; name: string };
 
+export type Alert = {
+  id: number;
+  title: string;
+  message: string;
+  level: 'info' | 'warning' | 'danger';
+  evacuate: boolean;
+  barangayId: number | null;
+  barangay: string | null;
+  createdAt: string;
+  endedAt: string | null;
+};
+
 export type DisasterEvent = {
   id: number;
   name: string;
