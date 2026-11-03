@@ -1,4 +1,4 @@
-# Render "Blueprint": tells render.com how to run the backend so the app works on any Wi-Fi or mobile data.
+# Render "Blueprint": runs the backend (API) and the admin website on render.com, so everything works on any network.
 # Set up once: render.com → New → Blueprint → pick this GitHub repo. Render asks for DATABASE_URL (paste from backend/.env).
 services:
   - type: web
@@ -16,3 +16,21 @@ services:
         sync: false          # secret: you paste it in Render, it is never stored in git
       - key: JWT_SECRET
         generateValue: true  # Render makes a long random secret for logins
+
+  # Admin portal as a free static website (always on, never sleeps)
+  - type: web
+    name: calap-alert-admin
+    runtime: static
+    rootDir: admin
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: VITE_API_URL
+        value: https://calap-alert-api.onrender.com
+    # Pages like /dashboard are handled by the app itself, so send every address to index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
