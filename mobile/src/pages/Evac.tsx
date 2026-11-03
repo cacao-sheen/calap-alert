@@ -1,31 +1,42 @@
 import {
-  IonBadge, IonContent, IonHeader, IonIcon, IonLabel, IonPage, IonRefresher, IonRefresherContent,
-  IonSearchbar, IonSegment, IonSegmentButton, IonTitle, IonToolbar, useIonRouter,
+  IonBadge, IonButton, IonChip, IonContent, IonHeader, IonIcon, IonPage, IonRefresher, IonRefresherContent,
+  IonSearchbar, IonSkeletonText, IonTitle, IonToolbar, useIonRouter,
 } from '@ionic/react';
-import { businessOutline } from 'ionicons/icons';
+import { businessOutline, mapOutline, navigate, walkOutline } from 'ionicons/icons';
 import { useState } from 'react';
 import { api } from '../api';
+import Empty from '../components/Empty';
 import { usePageLoad } from '../hooks';
 import type { EvacCenter } from '../types';
-import { centerStatus, DEFAULT_LOCATION, distanceKm, formatDistance, getLocation } from '../utils';
+import { centerStatus, DEFAULT_LOCATION, directionsUrl, distanceKm, formatDistance, getLocation, walkMinutes } from '../utils';
+
+const FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'available', label: 'Has space' },
+  { value: 'Ibaba East', label: 'Ibaba East' },
+  { value: 'Ibaba West', label: 'Ibaba West' },
+];
 
 export default function Evac() {
   const router = useIonRouter();
-  const [centers, setCenters] = useState<EvacCenter[]>([]);
+  const [centers, setCenters] = useState<EvacCenter[] | null>(null);
   const [me, setMe] = useState(DEFAULT_LOCATION);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
 
   const load = () =>
-    api<EvacCenter[]>('/evacuation-centers').then(setCenters).catch((e) => setError(e.message));
+    api<EvacCenter[]>('/evacuation-centers')
+      .then((c) => { setCenters(c); setError(''); })
+      .catch((e) => setError(e.message));
 
   usePageLoad(() => {
     load();
     getLocation().then((l) => setMe({ lat: l.lat, lng: l.lng }));
   });
 
-  const list = centers
+  // Nearest first, so the best choice is always on top
+  const list = (centers ?? [])
     .map((c) => ({ c, km: distanceKm(me, c) }))
     .filter(({ c }) => filter === 'all' || c.barangay === filter || (filter === 'available' && c.isOpen && c.currentOccupancy < c.capacity))
     .filter(({ c }) => c.name.toLowerCase().includes(search.toLowerCase()))
@@ -33,20 +44,9 @@ export default function Evac() {
 
   return (
     <IonPage>
-      <IonHeader>
+      <IonHeader className="app-header">
         <IonToolbar>
-          <IonTitle>Evacuation Centers</IonTitle>
-        </IonToolbar>
-        <IonToolbar>
-          <IonSearchbar placeholder="Search evacuation center" value={search} onIonInput={(e) => setSearch(e.detail.value ?? '')} />
-        </IonToolbar>
-        <IonToolbar>
-          <IonSegment value={filter} scrollable onIonChange={(e) => setFilter(String(e.detail.value))}>
-            <IonSegmentButton value="all"><IonLabel>All · {centers.length}</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="Ibaba East"><IonLabel>Ibaba East</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="Ibaba West"><IonLabel>Ibaba West</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="available"><IonLabel>Available</IonLabel></IonSegmentButton>
-          </IonSegment>
+          <IonTitle>Evacuation centers<span className="header-sub">Nearest to you first</span></IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent>
@@ -54,31 +54,52 @@ export default function Evac() {
           <IonRefresherContent />
         </IonRefresher>
         <div className="page-pad">
-          {error && <div className="card" style={{ color: '#b91c1c' }}>{error}</div>}
-          {list.map(({ c, km }) => {
+          <IonSearchbar placeholder="Search a center" value={search} onIonInput={(e) => setSearch(e.detail.value ?? '')} style={{ padding: 0 }} />
+          <div className="filters">
+            {FILTERS.map((f) => (
+              <IonChip key={f.value} color={filter === f.value ? 'primary' : 'medium'} outline={filter !== f.value} onClick={() => setFilter(f.value)}>
+                {f.label}
+              </IonChip>
+            ))}
+          </div>
+
+          {error && <div className="error-card">{error}</div>}
+          {centers === null && !error && [0, 1].map((i) => <div key={i} className="card"><IonSkeletonText animated style={{ height: 90 }} /></div>)}
+
+          {list.map(({ c, km }, i) => {
             const st = centerStatus(c);
             const pct = Math.min(100, (c.currentOccupancy / c.capacity) * 100);
             return (
-              <div key={c.id} className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}
-                onClick={() => router.push(`/tabs/map?focus=${c.id}`)}>
-                <div className="row">
-                  <span className="chip-icon" style={{ background: '#dcfce7', color: st.bar, borderRadius: 12 }}><IonIcon icon={businessOutline} /></span>
+              <div key={c.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="row" style={{ alignItems: 'flex-start' }}>
+                  <span className="chip-icon solid-icon" style={{ background: st.bar }}><IonIcon icon={businessOutline} /></span>
                   <div className="grow">
+                    {i === 0 && filter === 'all' && !search && <div className="small" style={{ color: '#16a34a', fontWeight: 600 }}>Nearest to you</div>}
                     <b>{c.name}</b>
-                    <div className="small muted">Brgy. {c.barangay} · {formatDistance(km)}</div>
+                    <div className="small muted">
+                      Brgy. {c.barangay} · {formatDistance(km)} · <IonIcon icon={walkOutline} style={{ verticalAlign: -2 }} /> {walkMinutes(km)} min
+                    </div>
                   </div>
                   <IonBadge color={st.color}>{st.label}</IonBadge>
                 </div>
-                <div className="between small">
-                  <span className="muted">Capacity</span>
-                  <b>{c.currentOccupancy} / {c.capacity} evacuees</b>
+                <div>
+                  <div className="between small" style={{ marginBottom: 6 }}>
+                    <span className="muted">People inside</span>
+                    <b>{c.currentOccupancy} / {c.capacity}</b>
+                  </div>
+                  <div className="bar"><div style={{ width: `${pct}%`, background: st.bar }} /></div>
                 </div>
-                <div className="bar"><div style={{ width: `${pct}%`, background: st.bar }} /></div>
-                <div className="tags">{c.facilities.map((f) => <span key={f} className="tag">{f}</span>)}</div>
+                {c.facilities.length > 0 && <div className="tags">{c.facilities.map((f) => <span key={f} className="tag">{f}</span>)}</div>}
+                <div className="two-buttons">
+                  <IonButton fill="outline" size="small" onClick={() => router.push(`/tabs/map?focus=${c.id}`)}><IonIcon slot="start" icon={mapOutline} />Show on map</IonButton>
+                  <IonButton size="small" href={directionsUrl(c.lat, c.lng)} target="_blank"><IonIcon slot="start" icon={navigate} />Directions</IonButton>
+                </div>
               </div>
             );
           })}
-          {!list.length && !error && <p className="muted" style={{ textAlign: 'center' }}>No evacuation centers found.</p>}
+          {centers !== null && !list.length && !error && (
+            <Empty icon={businessOutline} title="No centers found" hint="Try another filter or search word." />
+          )}
         </div>
       </IonContent>
     </IonPage>

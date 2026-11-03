@@ -1,21 +1,24 @@
 import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonInput, IonItem,
-  IonLabel, IonList, IonSelect, IonSelectOption, IonTextarea, useIonAlert, useIonRouter, useIonToast,
+  IonLabel, IonList, IonSelect, IonSpinner, IonSelectOption, IonTextarea, IonToggle, useIonAlert, useIonRouter, useIonToast,
 } from '@ionic/react';
-import { alertCircle, checkmarkCircle, megaphoneOutline, rainyOutline, thunderstormOutline } from 'ionicons/icons';
+import { checkmarkCircle, locationOutline, megaphoneOutline, rainyOutline, thunderstormOutline, warningOutline } from 'ionicons/icons';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import AdminPage from '../components/AdminPage';
+import Empty from '../components/Empty';
+import TypeIcon from '../components/TypeIcon';
 import FormModal from '../components/FormModal';
 import MapView from '../components/MapView';
 import { usePageLoad } from '../hooks';
-import type { BarangayStats, DisasterEvent, EvacCenter, Incident, Summary, Weather } from '../types';
-import { centerState, fmt, INCIDENT_INFO, INCIDENT_STATUS, pct, timeOf, weatherHeadline, weatherText } from '../utils';
+import type { BarangayStats, DisasterEvent, EvacCenter, Incident, Summary, Weather, WeatherEvent } from '../types';
+import { centerState, fmt, INCIDENT_INFO, INCIDENT_STATUS, pct, placeName, timeOf, weatherText } from '../utils';
 
 export default function Dashboard() {
   const router = useIonRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
+  const [weatherEvent, setWeatherEvent] = useState<WeatherEvent | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [centers, setCenters] = useState<EvacCenter[]>([]);
   const [error, setError] = useState('');
@@ -33,6 +36,7 @@ export default function Dashboard() {
       setCenters(c);
       setError('');
       api<Weather>('/weather').then(setWeather).catch(() => setWeather(null));
+      api<WeatherEvent>('/weather/event').then(setWeatherEvent).catch(() => setWeatherEvent(null));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -48,9 +52,6 @@ export default function Dashboard() {
 
   const actions = (
     <>
-      <IonButton fill="outline" onClick={() => setModal('event')}>
-        <IonIcon slot="start" icon={thunderstormOutline} />{summary?.event ? 'Update Typhoon Alert' : 'Start Disaster Alert'}
-      </IonButton>
       <IonButton fill="solid" color="danger" onClick={() => setModal('alert')}>
         <IonIcon slot="start" icon={megaphoneOutline} />Send Alert
       </IonButton>
@@ -60,7 +61,7 @@ export default function Dashboard() {
   if (!summary) {
     return (
       <AdminPage title="Dashboard" actions={actions}>
-        {error ? <p className="error">{error}</p> : <p className="muted">Loading…</p>}
+        {error ? <p className="error">{error}</p> : <div className="loading"><IonSpinner name="crescent" /></div>}
       </AdminPage>
     );
   }
@@ -74,26 +75,23 @@ export default function Dashboard() {
       </p>
       {error && <p className="error">{error}</p>}
 
-      {event ? (
-        <div className="banner">
-          <IonIcon icon={alertCircle} className="banner-icon" />
-          <div className="grow">
-            <b>{event.signalLevel ? `Typhoon Signal No. ${event.signalLevel} · ` : ''}{event.name}</b>
-            <p>{event.description}</p>
-            {weather && <p className="banner-weather">Live now: {weatherHeadline(weather)}</p>}
-          </div>
-          <small className="muted">Started {timeOf(event.startedAt)}</small>
+      {/* Real typhoon / rain, fetched live; the admin's own alert for residents is shown underneath */}
+      <div className={`banner ${weatherEvent?.kind === 'typhoon' ? '' : weatherEvent?.kind === 'rain' ? 'warn' : 'calm'}`}>
+        <IonIcon icon={weatherEvent?.kind === 'none' || !weatherEvent ? checkmarkCircle : weatherEvent.kind === 'rain' ? rainyOutline : thunderstormOutline} className="banner-icon" />
+        <div className="grow">
+          {weatherEvent ? (
+            <>
+              <b>{weatherEvent.title}</b>
+              <p>{weatherEvent.description}</p>
+              <p className="banner-weather">
+                Live from {weatherEvent.source}
+                {weatherEvent.url && <> · <a href={weatherEvent.url} target="_blank" rel="noreferrer">Details</a></>}
+              </p>
+            </>
+          ) : <p>Checking the weather…</p>}
+          {event && <p className="banner-weather">Resident alert: {event.signalLevel ? `Signal No. ${event.signalLevel} · ` : ''}{event.name} (started {timeOf(event.startedAt)})</p>}
         </div>
-      ) : (
-        <div className="banner calm">
-          <IonIcon icon={checkmarkCircle} className="banner-icon" />
-          <div className="grow">
-            <b>No active disaster alert</b>
-            <p>Start a disaster alert so residents can check in as safe, evacuated or needing help.</p>
-            {weather && <p className="banner-weather">Live now: {weatherHeadline(weather)}</p>}
-          </div>
-        </div>
-      )}
+      </div>
 
       <section className="kpis">
         <Kpi label="Total Residents" value={fmt(totals.residents)} sub={`${summary.barangays.length} barangays · ${fmt(totals.households)} households`} />
@@ -106,9 +104,39 @@ export default function Dashboard() {
           sub={`${pct(summary.centers.occupancy, summary.centers.capacity)} of ${fmt(summary.centers.capacity)} capacity`} />
       </section>
 
+      <div className="row-2">
+        <IonCard className="panel grow">
+          <IonCardHeader className="between">
+            <IonCardTitle>Live Map<small className="section-hint">Tap a pin to see details. Tap an incident to open it.</small></IonCardTitle>
+          </IonCardHeader>
+          <IonCardContent>
+            <MapView centers={centers} incidents={incidents} height={360} onIncidentClick={openIncident} />
+          </IonCardContent>
+        </IonCard>
+        <IonCard className="panel side wide">
+          <IonCardHeader className="between">
+            <IonCardTitle>Recent Incidents<small className="section-hint">Newest first</small></IonCardTitle>
+            <IonButton fill="clear" size="small" routerLink="/incidents">View all →</IonButton>
+          </IonCardHeader>
+          <IonList lines="full">
+            {incidents.slice(0, 6).map((i) => (
+              <IonItem key={i.id} button detail={false} onClick={() => openIncident(i.id)}>
+                <span slot="start"><TypeIcon type={i.type} /></span>
+                <IonLabel>
+                  <h3><b>{INCIDENT_INFO[i.type].label}</b> · {i.address ?? placeName(i.barangay)}</h3>
+                  <p>{i.reporterName ?? 'Unknown'} · {timeOf(i.createdAt)}</p>
+                </IonLabel>
+                <IonBadge slot="end" color={INCIDENT_STATUS[i.status].color}>{INCIDENT_STATUS[i.status].label}</IonBadge>
+              </IonItem>
+            ))}
+            {!incidents.length && <Empty icon={checkmarkCircle} title="No active incidents" hint="New reports from residents will show up here." />}
+          </IonList>
+        </IonCard>
+      </div>
+
       <IonCard className="panel">
         <IonCardHeader className="between">
-          <IonCardTitle>Barangay Status{event ? ` — ${event.name}` : ''}</IonCardTitle>
+          <IonCardTitle>Barangay Status{event ? ` — ${event.name}` : ''}<small className="section-hint">How many residents are safe, evacuated or still unaccounted for</small></IonCardTitle>
           <small className="muted">{pct(totals.safe + totals.evacuated, totals.residents)} accounted for overall</small>
         </IonCardHeader>
         <IonCardContent className="two-col">
@@ -153,38 +181,7 @@ export default function Dashboard() {
         </IonCard>
         <IonCard className="panel grow">
           <IonCardHeader className="between">
-            <IonCardTitle>Live Map · Ibaba East &amp; Ibaba West</IonCardTitle>
-            <small className="muted">Click an incident to open it</small>
-          </IonCardHeader>
-          <IonCardContent>
-            <MapView centers={centers} incidents={incidents} height={330} onIncidentClick={openIncident} />
-          </IonCardContent>
-        </IonCard>
-      </div>
-
-      <div className="row-2">
-        <IonCard className="panel grow">
-          <IonCardHeader className="between">
-            <IonCardTitle>Recent Incident Reports</IonCardTitle>
-            <IonButton fill="clear" size="small" routerLink="/incidents">View all →</IonButton>
-          </IonCardHeader>
-          <IonList lines="full">
-            {incidents.slice(0, 6).map((i) => (
-              <IonItem key={i.id} button detail={false} onClick={() => openIncident(i.id)}>
-                <span slot="start" className="type-chip" style={{ background: INCIDENT_INFO[i.type].bg }}>{INCIDENT_INFO[i.type].emoji}</span>
-                <IonLabel>
-                  <h3><b>{INCIDENT_INFO[i.type].label}</b> · {i.address ?? `Brgy. ${i.barangay ?? '—'}`}</h3>
-                  <p>{i.reporterName ?? 'Unknown'} · {timeOf(i.createdAt)}</p>
-                </IonLabel>
-                <IonBadge slot="end" color={INCIDENT_STATUS[i.status].color}>{INCIDENT_STATUS[i.status].label}</IonBadge>
-              </IonItem>
-            ))}
-            {!incidents.length && <IonItem><IonLabel className="muted">No active incidents.</IonLabel></IonItem>}
-          </IonList>
-        </IonCard>
-        <IonCard className="panel side">
-          <IonCardHeader className="between">
-            <IonCardTitle>Evacuation Centers</IonCardTitle>
+            <IonCardTitle>Evacuation Centers<small className="section-hint">How full each center is</small></IonCardTitle>
             <IonBadge color="success">{summary.centers.open} open</IonBadge>
           </IonCardHeader>
           <IonCardContent className="stack">
@@ -203,14 +200,14 @@ export default function Dashboard() {
       </div>
 
       <EventForm isOpen={modal === 'event'} event={event} onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} />
-      <AlertForm isOpen={modal === 'alert'} barangays={summary.barangays} onClose={() => setModal(null)} />
+      <AlertForm isOpen={modal === 'alert'} barangays={summary.barangays} event={event} onClose={() => setModal(null)} onSaved={load} onManageEvent={() => setModal('event')} />
     </AdminPage>
   );
 }
 
 function Kpi({ label, value, sub, color, onClick }: { label: string; value: string; sub: string; color?: string; onClick?: () => void }) {
   return (
-    <IonCard className="kpi" button={!!onClick} onClick={onClick}>
+    <IonCard className={`kpi ${color ? `c-${color}` : ""}`} button={!!onClick} onClick={onClick}>
       <IonCardContent>
         <small className="muted">{label}</small>
         <div className="kpi-value">{value}</div>
@@ -224,7 +221,7 @@ function BarangayBox({ b }: { b: BarangayStats }) {
   return (
     <div className="brgy">
       <div className="between">
-        <b>📍 Brgy. {b.name}</b>
+        <b className="row tight-row"><IonIcon icon={locationOutline} className="t-primary" />Brgy. {b.name}</b>
         <IonButton fill="clear" size="small" routerLink={`/residents?barangay=${b.id}`}>View residents →</IonButton>
       </div>
       <div className="mini-stats">
@@ -234,8 +231,8 @@ function BarangayBox({ b }: { b: BarangayStats }) {
         <div><small>Need help</small><b className="t-tertiary">{fmt(b.needHelp)}</b></div>
         <div><small>Unaccounted</small><b className="t-danger">{fmt(b.unaccounted)}</b></div>
       </div>
-      <StackBar parts={[[b.safe, '#16a34a'], [b.evacuated, '#2563eb'], [b.needHelp, '#9333ea'], [b.unaccounted, '#dc2626']]} />
-      {b.vulnerableAtRisk > 0 && <small className="t-danger">⚠ {b.vulnerableAtRisk} seniors / PWD not yet safe</small>}
+      <StackBar parts={[[b.safe, '#16a34a'], [b.evacuated, '#2563eb'], [b.needHelp, '#ea580c'], [b.unaccounted, '#dc2626']]} />
+      {b.vulnerableAtRisk > 0 && <small className="t-danger"><IonIcon icon={warningOutline} className="meta-icon t-danger" /> {b.vulnerableAtRisk} seniors / PWD not yet safe</small>}
     </div>
   );
 }
@@ -303,7 +300,7 @@ function EventForm({ isOpen, event, onClose, onSaved }: { isOpen: boolean; event
   return (
     <FormModal isOpen={isOpen} title={event ? 'Update disaster alert' : 'Start a disaster alert'} onClose={onClose}>
       <form className="stack" onSubmit={save}>
-        <IonInput label="Name" labelPlacement="stacked" fill="outline" value={name} onIonInput={(e) => setName(e.detail.value ?? '')} required placeholder='e.g. Typhoon "Kiko"' />
+        <IonInput label="Name" labelPlacement="stacked" fill="outline" value={name} onIonInput={(e) => setName(e.detail.value ?? '')} required placeholder='e.g. Typhoon "Pepito"' />
         <IonSelect label="Typhoon signal level" labelPlacement="stacked" fill="outline" value={signal} onIonChange={(e) => setSignal(e.detail.value)}>
           <IonSelectOption value="none">None (not a typhoon)</IonSelectOption>
           {[1, 2, 3, 4, 5].map((n) => <IonSelectOption key={n} value={String(n)}>Signal No. {n}</IonSelectOption>)}
@@ -316,20 +313,32 @@ function EventForm({ isOpen, event, onClose, onSaved }: { isOpen: boolean; event
   );
 }
 
-function AlertForm({ isOpen, barangays, onClose }: { isOpen: boolean; barangays: { id: number; name: string }[]; onClose: () => void }) {
+function AlertForm({ isOpen, barangays, event, onClose, onSaved, onManageEvent }: {
+  isOpen: boolean; barangays: { id: number; name: string }[]; event: DisasterEvent | null;
+  onClose: () => void; onSaved: () => void; onManageEvent: () => void;
+}) {
   const [toast] = useIonToast();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [level, setLevel] = useState('warning');
   const [barangayId, setBarangayId] = useState('all');
+  const [startEvent, setStartEvent] = useState(false);
+  const [eventName, setEventName] = useState('Typhoon ');
+  const [signal, setSignal] = useState('1');
 
   async function send(e: FormEvent) {
     e.preventDefault();
     try {
+      // A disaster in progress is what lets residents check in as safe / evacuated / need help
+      if (startEvent && !event) {
+        await api('/events/active', { method: 'PUT', body: { name: eventName, signalLevel: signal === 'none' ? null : Number(signal), description: message } });
+      }
       await api('/alerts', { method: 'POST', body: { title, message, level, barangayId: barangayId === 'all' ? null : Number(barangayId) } });
-      toast({ message: 'Alert sent to residents', duration: 2000, color: 'success' });
+      toast({ message: startEvent && !event ? 'Disaster started and alert sent' : 'Alert sent to residents', duration: 2000, color: 'success' });
       setTitle('');
       setMessage('');
+      setStartEvent(false);
+      onSaved();
       onClose();
     } catch (err) {
       toast({ message: (err as Error).message, duration: 3000, color: 'danger' });
@@ -350,7 +359,30 @@ function AlertForm({ isOpen, barangays, onClose }: { isOpen: boolean; barangays:
         </IonSelect>
         <IonInput label="Title" labelPlacement="stacked" fill="outline" value={title} onIonInput={(e) => setTitle(e.detail.value ?? '')} required placeholder="e.g. Pre-emptive evacuation" />
         <IonTextarea label="Message" labelPlacement="stacked" fill="outline" rows={4} value={message} onIonInput={(e) => setMessage(e.detail.value ?? '')} required />
-        <p className="muted small">Residents see this on the Calap Alert app's Home screen.</p>
+
+        {event ? (
+          <div className="confirm-card">
+            <div className="confirm-place"><IonIcon icon={warningOutline} className="t-danger" /> Disaster in progress: {event.name}</div>
+            <div className="muted small">Residents can check in as safe, evacuated or needing help.</div>
+            <IonButton size="small" fill="clear" onClick={() => { onClose(); onManageEvent(); }}>Edit or end this disaster</IonButton>
+          </div>
+        ) : (
+          <>
+            <IonToggle checked={startEvent} onIonChange={(e) => setStartEvent(e.detail.checked)}>Also start a disaster check-in</IonToggle>
+            {startEvent && (
+              <>
+                <p className="muted small">Residents will be asked to mark themselves safe, evacuated or needing help, and you will see who is unaccounted for.</p>
+                <IonInput label="Disaster name" labelPlacement="stacked" fill="outline" value={eventName} onIonInput={(e) => setEventName(e.detail.value ?? '')} required placeholder='e.g. Typhoon "Pepito"' />
+                <IonSelect label="Typhoon signal level" labelPlacement="stacked" fill="outline" value={signal} onIonChange={(e) => setSignal(e.detail.value)}>
+                  <IonSelectOption value="none">None (not a typhoon)</IonSelectOption>
+                  {[1, 2, 3, 4, 5].map((n) => <IonSelectOption key={n} value={String(n)}>Signal No. {n}</IonSelectOption>)}
+                </IonSelect>
+              </>
+            )}
+          </>
+        )}
+
+        <p className="muted small">Residents see the alert on the Calap Alert app's Home screen.</p>
         <IonButton type="submit" expand="block" color="danger"><IonIcon slot="start" icon={megaphoneOutline} />Send alert</IonButton>
       </form>
     </FormModal>

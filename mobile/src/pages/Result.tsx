@@ -24,7 +24,7 @@ const CONTENT = {
     ],
   },
   report: {
-    color: '#1d4ed8',
+    color: '#2563eb',
     icon: checkmark,
     title: 'Report sent!',
     message: 'Calapan CDRRMO received your report.',
@@ -59,12 +59,12 @@ export default function Result() {
             ))}
           </div>
           {kind === 'help' && (
-            <IonButton color="danger" size="large" href="tel:911"><IonIcon slot="start" icon={callOutline} />Call 911</IonButton>
+            <IonButton color="danger" href="tel:911"><IonIcon slot="start" icon={callOutline} />Call 911</IonButton>
           )}
           {kind === 'report' && (
-            <IonButton size="large" onClick={() => router.push('/tabs/map')}><IonIcon slot="start" icon={mapOutline} />View on Map</IonButton>
+            <IonButton onClick={() => router.push('/tabs/map')}><IonIcon slot="start" icon={mapOutline} />View on Map</IonButton>
           )}
-          <IonButton size="large" fill={kind === 'safe' ? 'solid' : 'outline'} onClick={() => router.push('/tabs/home', 'root')}>
+          <IonButton fill={kind === 'safe' ? 'solid' : 'outline'} onClick={() => router.push('/tabs/home', 'root')}>
             <IonIcon slot="start" icon={homeOutline} />Back to Home
           </IonButton>
         </div>

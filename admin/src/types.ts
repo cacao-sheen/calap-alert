@@ -9,6 +9,15 @@ export type DisasterEvent = {
   startedAt: string;
 };
 
+export type WeatherEvent = {
+  kind: 'typhoon' | 'rain' | 'none';
+  title: string;
+  description: string;
+  source: string;
+  url: string | null;
+  updatedAt: string | null;
+};
+
 export type Weather = {
   temperature: number;
   feelsLike: number;

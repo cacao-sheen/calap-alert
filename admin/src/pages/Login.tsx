@@ -1,7 +1,8 @@
-import { IonButton, IonCard, IonCardContent, IonContent, IonIcon, IonInput, IonPage, IonSpinner, IonText } from '@ionic/react';
-import { megaphone } from 'ionicons/icons';
+import { IonButton, IonContent, IonIcon, IonInput, IonInputPasswordToggle, IonPage, IonSpinner } from '@ionic/react';
+import { megaphoneOutline, peopleOutline, warningOutline } from 'ionicons/icons';
 import { useState, type FormEvent } from 'react';
 import { api } from '../api';
+import LogoMark from '../components/LogoMark';
 
 type LoginResponse = { token: string; user: { role: string; name?: string } };
 
@@ -31,26 +32,43 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
   return (
     <IonPage>
       <IonContent className="login-bg">
-        <div className="login-wrap">
-          <IonCard className="login-card">
-            <IonCardContent>
-              <form onSubmit={submit} className="stack">
-                <span className="logo-mark big"><IonIcon icon={megaphone} /></span>
-                <div>
-                  <h1>Calap Alert</h1>
-                  <p className="muted">Admin portal · Brgy. Ibaba East &amp; Ibaba West</p>
-                </div>
-                <IonInput label="Email" labelPlacement="floating" fill="outline" type="email" autocomplete="email"
-                  value={email} onIonInput={(e) => setEmail(e.detail.value ?? '')} required />
-                <IonInput label="Password" labelPlacement="floating" fill="outline" type="password" autocomplete="current-password"
-                  value={password} onIonInput={(e) => setPassword(e.detail.value ?? '')} required />
-                {error && <IonText color="danger"><p>{error}</p></IonText>}
-                <IonButton type="submit" expand="block" size="large" disabled={busy}>
-                  {busy ? <IonSpinner name="crescent" /> : 'Log in'}
-                </IonButton>
-              </form>
-            </IonCardContent>
-          </IonCard>
+        <div className="login-split">
+          <section className="login-brand">
+            <div className="login-brand-top">
+              <span className="logo-mark"><LogoMark size={32} /></span>
+              <b>Calap Alert</b>
+            </div>
+            <div>
+              <h2>Disaster response for Brgy. Ibaba East &amp; Ibaba West</h2>
+              <ul>
+                <li><IonIcon icon={megaphoneOutline} />Send alerts to residents in seconds</li>
+                <li><IonIcon icon={peopleOutline} />See who is safe, evacuated or needs help</li>
+                <li><IonIcon icon={warningOutline} />Track incident reports from the field</li>
+              </ul>
+            </div>
+            <small>Calapan City CDRRMO</small>
+          </section>
+
+          <section className="login-form-side">
+            <form onSubmit={submit} className="login-form stack">
+              <span className="logo-mark big login-mobile-logo"><LogoMark size={44} /></span>
+              <div>
+                <h1>Admin sign in</h1>
+                <p className="muted">Use the account given to you by the CDRRMO.</p>
+              </div>
+              <IonInput label="Email" labelPlacement="floating" fill="outline" type="email" autocomplete="email"
+                value={email} onIonInput={(e) => setEmail(e.detail.value ?? '')} required />
+              <IonInput label="Password" labelPlacement="floating" fill="outline" type="password" autocomplete="current-password"
+                value={password} onIonInput={(e) => setPassword(e.detail.value ?? '')} required>
+                <IonInputPasswordToggle slot="end" />
+              </IonInput>
+              {error && <p className="error">{error}</p>}
+              <IonButton type="submit" expand="block" className="login-button" disabled={busy}>
+                {busy ? <><IonSpinner name="crescent" />&nbsp;Signing in…</> : 'Sign in'}
+              </IonButton>
+              <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>Residents use the Calap Alert mobile app.</p>
+            </form>
+          </section>
         </div>
       </IonContent>
     </IonPage>

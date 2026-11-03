@@ -19,7 +19,7 @@ School final project. The student is a beginner: explain steps simply, one comma
 
 ## Backend
 - Entry `backend/src/index.js`; routes in `backend/src/routes/`; shared SQL in `backend/src/queries.js`.
-- Schema: `backend/db/schema.sql`. Seed + sample logins: `backend/scripts/setup-db.js` (`npm run db:setup` — **erases all data**).
+- Schema: `backend/db/schema.sql`. Setup: `backend/scripts/setup-db.js` (`npm run db:setup` — **erases all data**; creates only the 2 barangays + 1 admin, no sample data). Change the admin password with `npm run admin:password -- <email> "<new password>"`.
 - Safety status per resident = latest `safety_checkins` row for the active `disaster_events` row; no row = `unaccounted`.
 - Errors meant for users: `throw httpError(status, message)` from `src/http.js`. Express 5 catches async errors.
 - Env vars in `backend/.env` (copy from `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGIN`. Never commit `.env`.
@@ -32,9 +32,9 @@ cd mobile  && npm install && npm run dev
 npm run build      # in admin/ or mobile/ — runs tsc + vite build; use it to check for errors
 ```
 
-## Sample logins (dev only, created by db:setup)
-- Admin: admin@calapan.test / Admin123!
-- Resident: juan@calapan.test / Resident123!
+## Logins
+- Admin (created by db:setup unless ADMIN_EMAIL / ADMIN_PASSWORD are set in backend/.env): admin@calapan.test / Admin123!
+- Residents sign up in the mobile app. There is no sample data.
 
 ## Rules for changes
 - Keep code style: TypeScript strict, small components, comments only where the "why" isn't obvious.

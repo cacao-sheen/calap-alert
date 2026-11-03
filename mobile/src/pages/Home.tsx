@@ -3,16 +3,19 @@ import {
   useIonRouter,
 } from '@ionic/react';
 import {
-  alertCircle, businessOutline, callOutline, checkmark, cloudOutline, layersOutline, locationOutline,
-  rainyOutline, shieldCheckmarkOutline, speedometerOutline, warningOutline, waterOutline,
+  businessOutline, callOutline, checkmarkCircle, cloudOutline, handLeftOutline, mapOutline, megaphone,
+  rainyOutline, shieldCheckmark, speedometerOutline, thunderstorm, warningOutline, waterOutline,
 } from 'ionicons/icons';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import LogoMark from '../components/LogoMark';
 import { usePageLoad } from '../hooks';
-import type { Alert, DisasterEvent, ResidentStatus, Weather } from '../types';
-import { STATUS_LABEL, timeAgo, weatherHeadline, weatherText } from '../utils';
+import type { Alert, DisasterEvent, ResidentStatus, Weather, WeatherEvent } from '../types';
+import { STATUS_LABEL, timeAgo, weatherText } from '../utils';
 
 type Me = { firstName: string; barangay: string; barangayId: number };
+
+const STATUS_DOT: Record<string, string> = { safe: '#4ade80', evacuated: '#93c5fd', need_help: '#f87171', unaccounted: '#cbd5e1' };
 
 function greeting() {
   const h = new Date().getHours();
@@ -23,6 +26,7 @@ export default function Home() {
   const router = useIonRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
+  const [live, setLive] = useState<WeatherEvent | null>(null);
   const [event, setEvent] = useState<DisasterEvent | null>(null);
   const [alert, setAlert] = useState<Alert | null>(null);
   const [status, setStatus] = useState<ResidentStatus | null>(null);
@@ -33,12 +37,14 @@ export default function Home() {
     try {
       const profile = await api<Me>('/auth/me');
       setMe(profile);
-      const [w, s, alerts] = await Promise.all([
+      const [w, ev, s, alerts] = await Promise.all([
         api<Weather>('/weather').catch(() => null),
+        api<WeatherEvent>('/weather/event').catch(() => null),
         api<{ event: DisasterEvent | null; me: ResidentStatus | null }>('/checkins/me'),
         api<Alert[]>(`/alerts?barangayId=${profile.barangayId}`),
       ]);
       setWeather(w);
+      setLive(ev);
       setEvent(s.event);
       setStatus(s.me);
       setAlert(alerts[0] ?? null);
@@ -57,7 +63,8 @@ export default function Home() {
   }, []);
 
   const go = (path: string) => router.push(path);
-  const level = event?.signalLevel ? 'danger' : alert?.level ?? 'info';
+  const myStatus = status?.status ?? 'unaccounted';
+  const alertLevel = event?.signalLevel ? 'danger' : alert?.level ?? 'info';
 
   return (
     <IonPage>
@@ -67,52 +74,97 @@ export default function Home() {
         </IonRefresher>
 
         <div className="hero">
+          <div className="hero-brand">
+            <span className="logo-tile"><LogoMark size={26} /></span>
+            Calap Alert
+          </div>
           <h1>{greeting()}{me ? `, ${me.firstName}!` : '!'}</h1>
-          <div className="sub"><IonIcon icon={locationOutline} /> Brgy. {me?.barangay ?? '…'}, Calapan City</div>
+          <div className="sub">
+            {me ? `Brgy. ${me.barangay}, Calapan City` : <IonSkeletonText animated style={{ width: 170, height: 14 }} />}
+          </div>
+          {event && (
+            <div className="status-pill">
+              <i style={{ background: STATUS_DOT[myStatus] }} />
+              Your status: {STATUS_LABEL[myStatus]}
+            </div>
+          )}
         </div>
 
-        <div className="page-pad">
-          {error && <div className="card" style={{ color: '#b91c1c' }}>{error}</div>}
+        <div className="page-pad overlap">
+          {error && <div className="error-card">{error}</div>}
 
+          {/* Message from the barangay / CDRRMO */}
           {(event || alert) && (
-            <div className={`alert-banner ${level}`} onClick={() => go('/tabs/evac')}>
-              <div className="chip-icon" style={{ background: '#fff', color: '#dc2626' }}><IonIcon icon={alertCircle} /></div>
+            <div className={`alert-banner ${alertLevel}`} onClick={() => go('/tabs/evac')}>
+              <IonIcon icon={megaphone} />
               <div className="grow">
-                <div className="kicker">
-                  {event?.signalLevel ? `TYPHOON SIGNAL NO. ${event.signalLevel}` : alert?.title.toUpperCase()}
-                </div>
-                <p>{event ? `${event.name}. ${event.description ?? ''}` : alert?.message}</p>
-                {weather && <p style={{ fontWeight: 600, marginTop: 6 }}>Live now: {weatherHeadline(weather)}</p>}
-                {alert && event &&<p className="small" style={{ opacity: 0.85 }}>Latest: {alert.title} · {timeAgo(alert.createdAt)}</p>}
+                <div className="kicker">{event?.signalLevel ? `Typhoon Signal No. ${event.signalLevel}` : 'Barangay alert'}</div>
+                <b>{event ? event.name : alert?.title}</b>
+                <p>{event ? event.description : alert?.message}</p>
+                {alert && event && <p className="small">Latest: {alert.title} · {timeAgo(alert.createdAt)}</p>}
               </div>
             </div>
           )}
 
+          {/* Real typhoon / rain right now */}
+          {live && (
+            <div className={`alert-banner ${live.kind === 'typhoon' ? 'danger' : live.kind === 'rain' ? 'warning' : 'calm'}`}>
+              <IonIcon icon={live.kind === 'typhoon' ? thunderstorm : live.kind === 'rain' ? rainyOutline : checkmarkCircle} />
+              <div className="grow">
+                <div className="kicker">Live weather</div>
+                <b>{live.title}</b>
+                <p>{live.description}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="card safety-card">
+            <div className="row">
+              <span className="chip-icon solid-icon" style={{ background: '#16a34a' }}><IonIcon icon={shieldCheckmark} /></span>
+              <div className="grow">
+                <b>Are you safe?</b>
+                <div className="small muted">
+                  {!event
+                    ? 'No check-in needed right now. We will tell you when to check in.'
+                    : myStatus !== 'unaccounted'
+                      ? `You checked in as ${STATUS_LABEL[myStatus]}${status?.checkedInAt ? ` · ${timeAgo(status.checkedInAt)}` : ''}`
+                      : 'Your barangay is asking everyone to check in.'}
+                </div>
+              </div>
+            </div>
+            {event && (
+              <div className="actions">
+                <IonButton color="success" onClick={() => go('/tabs/me')}>I'm safe</IonButton>
+                <IonButton color="danger" fill="outline" onClick={() => go('/tabs/me')}><IonIcon slot="start" icon={handLeftOutline} />I need help</IonButton>
+              </div>
+            )}
+          </div>
+
           <div className="card">
             <div className="between">
               <div>
-                <div className="small muted" style={{ fontWeight: 600 }}>Weather Update · Calapan City</div>
+                <div className="small muted">Weather · Calapan City</div>
                 {weather ? (
                   <>
                     <div className="big-temp">{Math.round(weather.temperature)}°C</div>
-                    <div>{weatherText(weather.weatherCode)} · Feels like {Math.round(weather.feelsLike)}°</div>
+                    <div className="small">{weatherText(weather.weatherCode)} · Feels like {Math.round(weather.feelsLike)}°</div>
                   </>
                 ) : (
-                  <IonSkeletonText animated style={{ width: 160, height: 60 }} />
+                  <IonSkeletonText animated style={{ width: 150, height: 52 }} />
                 )}
               </div>
-              <div className="chip-icon" style={{ width: 72, height: 72, background: '#dbeafe', color: '#1d4ed8', fontSize: 40 }}>
+              <div className="weather-tile">
                 <IonIcon icon={weather && weather.weatherCode >= 51 ? rainyOutline : cloudOutline} />
               </div>
             </div>
             {weather && (
               <>
-                <div className="stats" style={{ marginTop: 14 }}>
-                  <div className="stat"><div className="label"><IonIcon icon={speedometerOutline} /> Wind</div><div className="value">{Math.round(weather.windSpeed)} km/h</div></div>
-                  <div className="stat"><div className="label"><IonIcon icon={rainyOutline} /> Rain chance</div><div className="value">{weather.rainChance ?? 0}%</div></div>
-                  <div className="stat"><div className="label"><IonIcon icon={waterOutline} /> Gusts</div><div className="value" style={{ color: weather.windGusts > 60 ? '#dc2626' : undefined }}>{Math.round(weather.windGusts)} km/h</div></div>
+                <div className="stats" style={{ margin: '14px 0 12px' }}>
+                  <div className="stat"><div className="label"><IonIcon icon={speedometerOutline} />Wind</div><div className="value">{Math.round(weather.windSpeed)} km/h</div></div>
+                  <div className="stat"><div className="label"><IonIcon icon={rainyOutline} />Rain</div><div className="value">{weather.rainChance ?? 0}%</div></div>
+                  <div className="stat"><div className="label"><IonIcon icon={waterOutline} />Gusts</div><div className="value" style={{ color: weather.windGusts > 60 ? '#dc2626' : undefined }}>{Math.round(weather.windGusts)} km/h</div></div>
                 </div>
-                <div className="hourly" style={{ marginTop: 12 }}>
+                <div className="hourly">
                   {weather.hourly.filter((_, i) => i % 3 === 0).slice(0, 4).map((h) => (
                     <div key={h.time}>
                       <span className="muted">{new Date(h.time).toLocaleTimeString([], { hour: 'numeric' })}</span>
@@ -121,35 +173,16 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <div className="small muted" style={{ marginTop: 10 }}>Source: {weather.source} · Updated {new Date(weather.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
               </>
             )}
           </div>
 
-          <div className="card">
-            <div className="row">
-              <div className="chip-icon" style={{ width: 36, height: 36, background: '#dcfce7', color: '#16a34a', fontSize: 18 }}><IonIcon icon={shieldCheckmarkOutline} /></div>
-              <div className="grow">
-                <b>Are you safe?</b>
-                <div className="small muted">
-                  {status && status.status !== 'unaccounted'
-                    ? `Your status: ${STATUS_LABEL[status.status]}${status.checkedInAt ? ` · ${timeAgo(status.checkedInAt)}` : ''}`
-                    : 'Let your barangay know your status'}
-                </div>
-              </div>
-            </div>
-            <div className="row" style={{ marginTop: 12 }}>
-              <IonButton className="grow" color="success" onClick={() => go('/tabs/me')}><IonIcon slot="start" icon={checkmark} />I'm Safe</IonButton>
-              <IonButton className="grow" color="danger" fill="outline" onClick={() => go('/tabs/me')}><IonIcon slot="start" icon={callOutline} />I Need Help</IonButton>
-            </div>
-          </div>
-
-          <div className="section-title">Quick Actions</div>
+          <div className="section-title">Quick actions</div>
           <div className="quick">
-            <button onClick={() => go('/tabs/report')}><span className="chip-icon" style={{ width: 44, height: 44, background: '#fee2e2', color: '#dc2626' }}><IonIcon icon={warningOutline} /></span>Report</button>
-            <button onClick={() => go('/tabs/evac')}><span className="chip-icon" style={{ width: 44, height: 44, background: '#dcfce7', color: '#16a34a' }}><IonIcon icon={businessOutline} /></span>Evac Centers</button>
-            <button onClick={() => go('/tabs/map')}><span className="chip-icon" style={{ width: 44, height: 44, background: '#dbeafe', color: '#1d4ed8' }}><IonIcon icon={layersOutline} /></span>3D Map</button>
-            <button onClick={() => (window.location.href = 'tel:911')}><span className="chip-icon" style={{ width: 44, height: 44, background: '#fef3c7', color: '#d97706' }}><IonIcon icon={callOutline} /></span>Call 911</button>
+            <button onClick={() => go('/tabs/report')}><span className="chip-icon solid-icon" style={{ background: '#dc2626' }}><IonIcon icon={warningOutline} /></span>Report</button>
+            <button onClick={() => go('/tabs/evac')}><span className="chip-icon solid-icon" style={{ background: '#16a34a' }}><IonIcon icon={businessOutline} /></span>Evac centers</button>
+            <button onClick={() => go('/tabs/map')}><span className="chip-icon solid-icon" style={{ background: '#2563eb' }}><IonIcon icon={mapOutline} /></span>Map</button>
+            <button onClick={() => (window.location.href = 'tel:911')}><span className="chip-icon solid-icon" style={{ background: '#d97706' }}><IonIcon icon={callOutline} /></span>Call 911</button>
           </div>
         </div>
       </IonContent>

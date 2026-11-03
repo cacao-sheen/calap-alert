@@ -3,3 +3,6 @@ dist/
 .env
 *.log
 .DS_Store
+.idea/
+# Created by "npx cap add android" (the APK workflow makes it fresh)
+mobile/android/

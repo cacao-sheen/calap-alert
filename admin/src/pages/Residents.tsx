@@ -1,11 +1,12 @@
 import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCheckbox, IonIcon, IonInput,
-  IonLabel, IonSearchbar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast,
+  IonLabel, IonSearchbar, IonSpinner, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast,
 } from '@ionic/react';
-import { add, chevronBack, chevronForward, locationOutline } from 'ionicons/icons';
+import { add, chevronBack, chevronForward, locationOutline, peopleOutline } from 'ionicons/icons';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import AdminPage from '../components/AdminPage';
+import Empty from '../components/Empty';
 import FormModal from '../components/FormModal';
 import { usePageLoad } from '../hooks';
 import type { Barangay, EvacCenter, Resident, ResidentPage, SafetyStatus } from '../types';
@@ -14,7 +15,7 @@ import { StackBar } from './Dashboard';
 
 type Tab = 'all' | SafetyStatus;
 const TABS: Tab[] = ['all', 'safe', 'evacuated', 'need_help', 'unaccounted'];
-const AVATAR = ['#16a34a', '#1d4ed8', '#dc2626', '#7c3aed', '#db2777', '#0891b2', '#ea580c', '#4b5563', '#65a30d', '#0d9488'];
+const AVATAR = ['#16a34a', '#1d4ed8', '#dc2626', '#0e7490', '#b45309', '#0891b2', '#ea580c', '#4b5563', '#65a30d', '#0d9488'];
 
 export default function Residents() {
   const [barangays, setBarangays] = useState<Barangay[]>([]);
@@ -60,7 +61,10 @@ export default function Residents() {
   return (
     <AdminPage title="Residents" actions={<IonButton fill="solid" onClick={() => setAdding(true)}><IonIcon slot="start" icon={add} />Add Resident</IonButton>}>
       <div className="between wrap">
-        <h1>Brgy. {brgy?.name ?? '…'} — Residents</h1>
+        <div>
+          <h1>Brgy. {brgy?.name ?? '…'}</h1>
+          <p className="muted subtitle">Check who is safe, and update the status of residents without a phone.</p>
+        </div>
         <IonSegment className="brgy-switch" value={String(barangayId)} onIonChange={(e) => { setBarangayId(Number(e.detail.value)); setPage(1); }}>
           {barangays.map((b) => (
             <IonSegmentButton key={b.id} value={String(b.id)}>
@@ -82,7 +86,7 @@ export default function Residents() {
           <IonCard className="panel">
             <IonCardHeader><IonCardTitle>Accountability — {pct(c.safe + c.evacuated, c.all)} accounted for</IonCardTitle></IonCardHeader>
             <IonCardContent>
-              <StackBar parts={[[c.safe, '#16a34a'], [c.evacuated, '#2563eb'], [c.need_help, '#9333ea'], [c.unaccounted, '#dc2626']]} />
+              <StackBar parts={[[c.safe, '#16a34a'], [c.evacuated, '#2563eb'], [c.need_help, '#ea580c'], [c.unaccounted, '#dc2626']]} />
             </IonCardContent>
           </IonCard>
         </>
@@ -97,7 +101,7 @@ export default function Residents() {
               </IonSegmentButton>
             ))}
           </IonSegment>
-          <IonSearchbar className="search" placeholder="Search name or ID" debounce={300} value={search}
+          <IonSearchbar className="search" placeholder="Search a resident by name or ID" debounce={300} value={search}
             onIonInput={(e) => { setSearch(e.detail.value ?? ''); setPage(1); }} />
         </div>
         <div className="table-scroll">
@@ -125,10 +129,11 @@ export default function Residents() {
                   <td><IonBadge color={SAFETY[r.status].color}>{SAFETY[r.status].label}</IonBadge></td>
                   <td className="muted">{r.checkedInAt ? timeOf(r.checkedInAt) : '—'}</td>
                   <td>{r.centerName ?? (r.status === 'safe' ? 'Home' : r.status === 'unaccounted' ? 'Unknown' : '—')}</td>
-                  <td><IonButton size="small" fill="outline" onClick={() => setEditing(r)}>Update</IonButton></td>
+                  <td><IonButton size="small" fill="outline" onClick={() => setEditing(r)}>Update status</IonButton></td>
                 </tr>
               ))}
-              {data && !data.items.length && <tr><td colSpan={8} className="muted">No residents found.</td></tr>}
+              {!data && <tr><td colSpan={8}><div className="loading"><IonSpinner name="crescent" /></div></td></tr>}
+              {data && !data.items.length && <tr><td colSpan={8}><Empty icon={peopleOutline} title="No residents found" hint="Try another status tab or a different name." /></td></tr>}
             </tbody>
           </table>
         </div>

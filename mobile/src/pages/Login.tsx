@@ -1,7 +1,7 @@
-import { IonButton, IonContent, IonIcon, IonInput, IonPage, IonRouterLink, IonSpinner, IonText } from '@ionic/react';
-import { shieldCheckmark } from 'ionicons/icons';
+import { IonButton, IonContent, IonInput, IonInputPasswordToggle, IonPage, IonSpinner } from '@ionic/react';
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth';
+import LogoMark from '../components/LogoMark';
 
 export default function Login() {
   const { login } = useAuth();
@@ -26,23 +26,30 @@ export default function Login() {
   return (
     <IonPage>
       <IonContent>
-        <form className="auth" onSubmit={submit}>
-          <div className="logo"><IonIcon icon={shieldCheckmark} /></div>
+        <div className="auth-top">
+          <div className="logo-tile"><LogoMark size={44} /></div>
+          <h1>Calap Alert</h1>
+          <p>Brgy. Ibaba East &amp; Ibaba West, Calapan City</p>
+        </div>
+        <form className="auth-card" onSubmit={submit}>
           <div>
-            <h1>Calap Alert</h1>
-            <p className="muted">Brgy. Ibaba East &amp; Ibaba West, Calapan City</p>
+            <h2>Welcome back</h2>
+            <p className="small muted" style={{ margin: '2px 0 0' }}>Log in to get alerts and check in during disasters.</p>
           </div>
           <IonInput label="Email" labelPlacement="floating" fill="outline" type="email" autocomplete="email"
             value={email} onIonInput={(e) => setEmail(e.detail.value ?? '')} required />
           <IonInput label="Password" labelPlacement="floating" fill="outline" type="password" autocomplete="current-password"
-            value={password} onIonInput={(e) => setPassword(e.detail.value ?? '')} required />
-          {error && <IonText color="danger"><p className="small">{error}</p></IonText>}
-          <IonButton type="submit" expand="block" size="large" disabled={busy}>
-            {busy ? <IonSpinner name="crescent" /> : 'Log in'}
+            value={password} onIonInput={(e) => setPassword(e.detail.value ?? '')} required>
+            <IonInputPasswordToggle slot="end" />
+          </IonInput>
+          {error && <div className="error-card">{error}</div>}
+          <IonButton type="submit" expand="block" className="auth-button" disabled={busy}>
+            {busy ? <><IonSpinner name="crescent" />&nbsp;Logging in…</> : 'Log in'}
           </IonButton>
-          <p className="muted" style={{ textAlign: 'center' }}>
-            New resident? <IonRouterLink routerLink="/register">Create an account</IonRouterLink>
-          </p>
+          <div className="or-line"><span>New to Calap Alert?</span></div>
+          <IonButton expand="block" fill="outline" className="auth-button" routerLink="/register" disabled={busy}>
+            Create an account
+          </IonButton>
         </form>
       </IonContent>
     </IonPage>

@@ -1,8 +1,8 @@
-import { IonApp, IonRouterOutlet, IonSplitPane, setupIonicReact } from '@ionic/react';
+import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { useState } from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import Menu from './components/Menu';
+import Shell from './components/Shell';
 import Dashboard from './pages/Dashboard';
 import Evacuation from './pages/Evacuation';
 import Incidents from './pages/Incidents';
@@ -17,6 +17,7 @@ import '@ionic/react/css/typography.css';
 import '@ionic/react/css/padding.css';
 import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
+import '@ionic/react/css/palettes/dark.class.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './theme/variables.css';
 import './theme/admin.css';
@@ -35,9 +36,7 @@ export default function App() {
     <IonApp>
       <IonReactRouter>
         {token ? (
-          // Side menu is always visible on wide screens; on small screens it opens with the ☰ button
-          <IonSplitPane contentId="main" when="lg">
-            <Menu onLogout={logout} />
+          <Shell onLogout={logout}>
             <IonRouterOutlet id="main">
               <Route exact path="/dashboard" component={Dashboard} />
               <Route exact path="/incidents" component={Incidents} />
@@ -45,7 +44,7 @@ export default function App() {
               <Route exact path="/evacuation" component={Evacuation} />
               <Route render={() => <Redirect to="/dashboard" />} />
             </IonRouterOutlet>
-          </IonSplitPane>
+          </Shell>
         ) : (
           <IonRouterOutlet>
             <Route exact path="/login" render={() => <Login onLogin={setToken} />} />

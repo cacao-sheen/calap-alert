@@ -1,14 +1,18 @@
+import {
+  alertCircleOutline, carOutline, flameOutline, flashOffOutline, leafOutline, medkitOutline, trendingDownOutline, waterOutline,
+} from 'ionicons/icons';
 import type { EvacCenter, IncidentStatus, IncidentType, SafetyStatus, Weather } from './types';
 
-export const INCIDENT_INFO: Record<IncidentType, { label: string; emoji: string; color: string; bg: string }> = {
-  flood: { label: 'Flood', emoji: '🌊', color: '#1d4ed8', bg: '#dbeafe' },
-  fire: { label: 'Fire', emoji: '🔥', color: '#dc2626', bg: '#fee2e2' },
-  car_accident: { label: 'Car Accident', emoji: '🚗', color: '#b45309', bg: '#fef3c7' },
-  landslide: { label: 'Landslide', emoji: '⛰️', color: '#c2410c', bg: '#ffedd5' },
-  medical: { label: 'Medical', emoji: '🩺', color: '#be185d', bg: '#fce7f3' },
-  power_outage: { label: 'Power Outage', emoji: '⚡', color: '#a16207', bg: '#fef9c3' },
-  fallen_tree: { label: 'Fallen Tree', emoji: '🌳', color: '#15803d', bg: '#dcfce7' },
-  other: { label: 'Other', emoji: '❗', color: '#475569', bg: '#f1f5f9' },
+// Deep, solid colors (white icon on top) so each type is easy to tell apart
+export const INCIDENT_INFO: Record<IncidentType, { label: string; icon: string; color: string }> = {
+  flood: { label: 'Flood', icon: waterOutline, color: '#1e40af' },
+  fire: { label: 'Fire', icon: flameOutline, color: '#b91c1c' },
+  car_accident: { label: 'Car Accident', icon: carOutline, color: '#c2410c' },
+  landslide: { label: 'Landslide', icon: trendingDownOutline, color: '#78350f' },
+  medical: { label: 'Medical', icon: medkitOutline, color: '#9d174d' },
+  power_outage: { label: 'Power Outage', icon: flashOffOutline, color: '#a16207' },
+  fallen_tree: { label: 'Fallen Tree', icon: leafOutline, color: '#166534' },
+  other: { label: 'Other', icon: alertCircleOutline, color: '#334155' },
 };
 
 // `color` is an Ionic color name (see theme/variables.css)
@@ -22,7 +26,7 @@ export const INCIDENT_STATUS: Record<IncidentStatus, { label: string; color: str
 export const SAFETY: Record<SafetyStatus, { label: string; color: string; hex: string }> = {
   safe: { label: 'Safe', color: 'success', hex: '#16a34a' },
   evacuated: { label: 'Evacuated', color: 'primary', hex: '#2563eb' },
-  need_help: { label: 'Needs help', color: 'tertiary', hex: '#9333ea' },
+  need_help: { label: 'Needs help', color: 'tertiary', hex: '#ea580c' },
   unaccounted: { label: 'Unaccounted', color: 'danger', hex: '#dc2626' },
 };
 
@@ -36,6 +40,9 @@ export function centerState(c: EvacCenter) {
 
 export const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '0%');
 export const fmt = (n: number) => n.toLocaleString('en-US');
+// Incidents are placed in a barangay by their GPS spot; spots farther away have none
+export const placeName = (barangay: string | null | undefined) => (barangay ? `Brgy. ${barangay}` : 'Outside Ibaba East & West');
+
 export const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 export function timeAgo(iso: string): string {

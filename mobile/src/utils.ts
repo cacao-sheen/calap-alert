@@ -4,19 +4,21 @@ import {
 } from 'ionicons/icons';
 import type { EvacCenter, IncidentType, SafetyStatus, Weather } from './types';
 
-// Center of Brgy. Ibaba East / West area (sample). Used when GPS is not available.
+// Center of Brgy. Ibaba East / West. Used when GPS is not available.
 export const DEFAULT_LOCATION = { lat: 13.4135, lng: 121.18 };
 
-export const INCIDENT_TYPES: { type: IncidentType; label: string; icon: string; color: string; bg: string; emoji: string }[] = [
-  { type: 'car_accident', label: 'Car Accident', icon: carOutline, color: '#b45309', bg: '#fef3c7', emoji: '🚗' },
-  { type: 'fire', label: 'Fire', icon: flameOutline, color: '#dc2626', bg: '#fee2e2', emoji: '🔥' },
-  { type: 'flood', label: 'Flood', icon: waterOutline, color: '#1d4ed8', bg: '#dbeafe', emoji: '🌊' },
-  { type: 'landslide', label: 'Landslide', icon: trailSignOutline, color: '#c2410c', bg: '#ffedd5', emoji: '⛰️' },
-  { type: 'medical', label: 'Medical', icon: medkitOutline, color: '#be185d', bg: '#fce7f3', emoji: '🩺' },
-  { type: 'power_outage', label: 'Power Outage', icon: flashOutline, color: '#a16207', bg: '#fef9c3', emoji: '⚡' },
-  { type: 'fallen_tree', label: 'Fallen Tree', icon: leafOutline, color: '#15803d', bg: '#dcfce7', emoji: '🌳' },
-  { type: 'other', label: 'Other', icon: ellipsisHorizontal, color: '#475569', bg: '#f1f5f9', emoji: '❗' },
+// Deep, solid colors so each type is easy to tell apart (same as the admin portal)
+export const INCIDENT_TYPES: { type: IncidentType; label: string; icon: string; color: string }[] = [
+  { type: 'car_accident', label: 'Car Accident', icon: carOutline, color: '#c2410c' },
+  { type: 'fire', label: 'Fire', icon: flameOutline, color: '#b91c1c' },
+  { type: 'flood', label: 'Flood', icon: waterOutline, color: '#1e40af' },
+  { type: 'landslide', label: 'Landslide', icon: trailSignOutline, color: '#78350f' },
+  { type: 'medical', label: 'Medical', icon: medkitOutline, color: '#9d174d' },
+  { type: 'power_outage', label: 'Power Outage', icon: flashOutline, color: '#a16207' },
+  { type: 'fallen_tree', label: 'Fallen Tree', icon: leafOutline, color: '#166534' },
+  { type: 'other', label: 'Other', icon: ellipsisHorizontal, color: '#334155' },
 ];
+
 export const incidentInfo = (t: IncidentType) => INCIDENT_TYPES.find((x) => x.type === t) ?? INCIDENT_TYPES[7];
 export const fallbackIcon = alertCircleOutline;
 
@@ -55,7 +57,7 @@ export function weatherHeadline(w: Weather): string {
   parts.push(`Wind ${Math.round(w.windSpeed)} km/h (gusts ${Math.round(w.windGusts)})`);
   if (w.rainChance != null) parts.push(`Rain chance ${w.rainChance}%`);
   const warn = w.weatherCode >= 95 ? 'Thunderstorm' : w.windGusts >= 60 ? 'Strong winds' : w.weatherCode >= 65 ? 'Heavy rain' : '';
-  return `${warn ? `⚠ ${warn} · ` : ''}${parts.join(' · ')}`;
+  return `${warn ? `${warn} · ` : ''}${parts.join(' · ')}`;
 }
 
 export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -91,15 +93,35 @@ export function timeAgo(iso: string): string {
 
 export const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
+export type Fix = { lat: number; lng: number; fromGps: boolean; accuracy: number | null };
+
 // Current GPS position, or the default Ibaba location if permission is denied.
-export function getLocation(): Promise<{ lat: number; lng: number; fromGps: boolean }> {
+// The first reading on a phone is often a rough guess from Wi-Fi / cell towers, so for reports and
+// check-ins (precise = true) we keep listening for a few seconds and use the most accurate reading.
+export function getLocation(precise = false): Promise<Fix> {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve({ ...DEFAULT_LOCATION, fromGps: false });
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, fromGps: true }),
-      () => resolve({ ...DEFAULT_LOCATION, fromGps: false }),
-      { enableHighAccuracy: true, timeout: 8000 },
+    const fallback: Fix = { ...DEFAULT_LOCATION, fromGps: false, accuracy: null };
+    if (!navigator.geolocation) return resolve(fallback);
+    let best: Fix | null = null;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      navigator.geolocation.clearWatch(id);
+      clearTimeout(timer);
+      resolve(best ?? fallback);
+    };
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        if (!best || p.coords.accuracy < (best.accuracy ?? Infinity)) {
+          best = { lat: p.coords.latitude, lng: p.coords.longitude, fromGps: true, accuracy: p.coords.accuracy };
+        }
+        if (!precise || p.coords.accuracy <= 20) finish();
+      },
+      () => finish(),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
+    const timer = setTimeout(finish, precise ? 10000 : 8000);
   });
 }
 

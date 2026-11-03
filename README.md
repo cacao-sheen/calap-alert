@@ -61,7 +61,7 @@ Copy `.env.example` to `.env` and paste your Neon connection string into `DATABA
 npm run db:setup
 ```
 
-This creates the tables and sample data. **Warning: it erases existing data**, so run it only the first time or when you want to reset.
+This creates the tables, the two barangays and one admin account (no sample data). **Warning: it erases existing data**, so run it only the first time or when you want to reset.
 
 ```bash
 npm run dev
@@ -93,17 +93,16 @@ npm run dev
 
 Open http://localhost:5173. In Chrome, press F12 and click the phone icon to see it in phone size.
 
-## Sample logins (development only)
+## Logins
 
 Created by `npm run db:setup` (see `backend/scripts/setup-db.js`):
 
 | App | Email | Password |
 |---|---|---|
 | Admin portal | `admin@calapan.test` | `Admin123!` |
-| Resident app | `juan@calapan.test` | `Resident123!` |
 
-Change these or delete them before real use. All names, numbers and the typhoon "Kiko" in the sample data are made up.
-The evacuation-center and incident coordinates are approximate. Replace them with the real locations in `backend/scripts/setup-db.js`.
+Residents create their own accounts in the app. Change the admin password with `npm run admin:password -- admin@calapan.test "NewPassword123"` in `backend/`.
+Add evacuation centers in the admin portal (Evacuation Centers → Add evacuation center).
 
 ---
 
@@ -166,7 +165,7 @@ When the admin ends an event, everyone starts fresh for the next one.
 
 - **`npm install` fails with an "esbuild" error**: the folder path is too long for Windows. Move the project to a shorter path like `C:\projects\Calap-Alert`.
 - **"Cannot reach the server"**: start the backend first (`npm run dev` in `backend/`).
-- **Login says "Wrong email or password"**: run `npm run db:setup` once to create the sample accounts.
+- **Login says "Wrong email or password"**: run `npm run db:setup` once to create the admin account.
 
 ## Ideas for next steps
 

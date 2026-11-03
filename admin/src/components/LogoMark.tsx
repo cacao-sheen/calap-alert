@@ -1,0 +1,19 @@
+// Calap Alert logo: a protective shield with an alert signal broadcasting from the center
+export default function LogoMark({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="logo-shield" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#2563eb" />
+          <stop offset="1" stopColor="#0b1f5c" />
+        </linearGradient>
+      </defs>
+      <path d="M12 1.8 20.4 5v6.2c0 5.1-3.5 9.2-8.4 11-4.9-1.8-8.4-5.9-8.4-11V5z" fill="url(#logo-shield)" />
+      <g fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round">
+        <path d="M8.9 8.7a4.4 4.4 0 0 0 0 6.2M15.1 8.7a4.4 4.4 0 0 1 0 6.2" />
+        <path d="M6.6 6.6a7.6 7.6 0 0 0 0 10.4M17.4 6.6a7.6 7.6 0 0 1 0 10.4" opacity="0.6" />
+      </g>
+      <circle cx="12" cy="11.8" r="1.9" fill="#ef4444" stroke="#fff" strokeWidth="0.9" />
+    </svg>
+  );
+}

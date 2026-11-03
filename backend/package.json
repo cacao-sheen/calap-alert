@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "node --watch --env-file=.env src/index.js",
     "start": "node src/index.js",
-    "db:setup": "node --env-file=.env scripts/setup-db.js"
+    "db:setup": "node --env-file=.env scripts/setup-db.js",
+    "admin:password": "node --env-file=.env scripts/admin-password.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

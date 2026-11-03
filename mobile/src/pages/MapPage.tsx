@@ -1,7 +1,7 @@
 import {
   IonButton, IonContent, IonIcon, IonLabel, IonPage, IonSegment, IonSegmentButton,
 } from '@ionic/react';
-import { cameraOutline, navigate } from 'ionicons/icons';
+import { businessOutline, cameraOutline, navigate, walkOutline } from 'ionicons/icons';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -16,11 +16,13 @@ import {
 // Free vector map tiles with 3D buildings (no API key needed)
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
-function pinElement(bg: string, text: string) {
+function pinElement(bg: string, icon: string) {
   const el = document.createElement('div');
   el.className = 'pin';
   el.style.background = bg;
-  el.textContent = text;
+  const i = document.createElement('ion-icon') as HTMLElement & { icon: string };
+  i.icon = icon;
+  el.appendChild(i);
   return el;
 }
 
@@ -106,7 +108,7 @@ export default function MapPage() {
     for (const c of centers) {
       const st = centerStatus(c);
       markers.current.push(
-        new maplibregl.Marker({ element: pinElement(st.bar, '🏫') })
+        new maplibregl.Marker({ element: pinElement(st.bar, businessOutline) })
           .setLngLat([c.lng, c.lat])
           .setPopup(popup(c.name, [`${c.currentOccupancy} / ${c.capacity} evacuees · ${st.label}`, `Brgy. ${c.barangay}`]))
           .addTo(m),
@@ -116,7 +118,7 @@ export default function MapPage() {
       if (i.lat == null || i.lng == null) continue;
       const info = incidentInfo(i.type);
       markers.current.push(
-        new maplibregl.Marker({ element: pinElement(info.color, info.emoji) })
+        new maplibregl.Marker({ element: pinElement(info.color, info.icon) })
           .setLngLat([i.lng, i.lat])
           .setPopup(popup(info.label, [i.address ?? '', i.description, `Status: ${i.status}`]))
           .addTo(m),
@@ -153,20 +155,20 @@ export default function MapPage() {
             <IonSegmentButton value="3d"><IonLabel>3D</IonLabel></IonSegmentButton>
           </IonSegment>
           <div className="map-legend">
-            <span>🏫 Evacuation center</span>
-            <span>🌊🔥🚗 Incidents</span>
-            <span style={{ color: '#1d4ed8' }}>● You</span>
+            <span><i style={{ background: '#16a34a' }} />Evacuation center</span>
+            <span><i style={{ background: '#b91c1c' }} />Incident</span>
+            <span><i style={{ background: '#2563eb' }} />You</span>
           </div>
         </div>
         {nearest && (
           <div className="map-sheet">
             <div className="handle" />
             <div className="row">
-              <span className="chip-icon" style={{ background: '#dcfce7', borderRadius: 12 }}>🏫</span>
+              <span className="chip-icon solid-icon" style={{ background: '#16a34a' }}><IonIcon icon={businessOutline} /></span>
               <div className="grow">
-                <div className="small" style={{ color: '#16a34a', fontWeight: 700, letterSpacing: '0.04em' }}>NEAREST EVACUATION CENTER</div>
+                <div className="kicker">Nearest evacuation center</div>
                 <b>{nearest.c.name}</b>
-                <div className="small muted">{formatDistance(nearest.km)} · {walkMinutes(nearest.km)} min walk · Brgy. {nearest.c.barangay}</div>
+                <div className="small muted">{formatDistance(nearest.km)} · <IonIcon icon={walkOutline} style={{ verticalAlign: -2 }} /> {walkMinutes(nearest.km)} min · Brgy. {nearest.c.barangay}</div>
               </div>
             </div>
             <div className="between small">
@@ -174,12 +176,14 @@ export default function MapPage() {
               <b>{nearest.c.currentOccupancy} / {nearest.c.capacity} evacuees</b>
             </div>
             <div className="bar"><div style={{ width: `${Math.min(100, (nearest.c.currentOccupancy / nearest.c.capacity) * 100)}%`, background: centerStatus(nearest.c).bar }} /></div>
-            <IonButton expand="block" onClick={() => allowCompass().then(() => setLiveOpen(true))}>
-              <IonIcon slot="start" icon={cameraOutline} />Live View (camera)
-            </IonButton>
-            <IonButton expand="block" fill="outline" href={directionsUrl(nearest.c.lat, nearest.c.lng)} target="_blank">
-              <IonIcon slot="start" icon={navigate} />Get Directions
-            </IonButton>
+            <div className="two-buttons">
+              <IonButton onClick={() => allowCompass().then(() => setLiveOpen(true))}>
+                <IonIcon slot="start" icon={cameraOutline} />Live View
+              </IonButton>
+              <IonButton fill="outline" href={directionsUrl(nearest.c.lat, nearest.c.lng)} target="_blank">
+                <IonIcon slot="start" icon={navigate} />Directions
+              </IonButton>
+            </div>
           </div>
         )}
       </IonContent>

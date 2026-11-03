@@ -2,17 +2,20 @@ import { IonLabel, IonSegment, IonSegmentButton } from '@ionic/react';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import type { EvacCenter, Incident } from '../types';
+import { businessOutline } from 'ionicons/icons';
 import { centerState, INCIDENT_INFO } from '../utils';
 
 // Free vector map tiles with 3D buildings (no API key needed)
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const IBABA = { lat: 13.4135, lng: 121.18 };
 
-function pin(bg: string, text: string, size = 30) {
+export function pin(bg: string, icon: string, size = 30) {
   const el = document.createElement('div');
   el.className = 'pin';
   Object.assign(el.style, { background: bg, width: `${size}px`, height: `${size}px` });
-  el.textContent = text;
+  const i = document.createElement('ion-icon') as HTMLElement & { icon: string };
+  i.icon = icon;
+  el.appendChild(i);
   return el;
 }
 
@@ -90,7 +93,7 @@ export default function MapView({ centers = [], incidents = [], height = 320, fo
     markers.current = [];
     for (const c of centers) {
       const st = centerState(c);
-      markers.current.push(new maplibregl.Marker({ element: pin(st.bar, '🏫') })
+      markers.current.push(new maplibregl.Marker({ element: pin(st.bar, businessOutline) })
         .setLngLat([c.lng, c.lat])
         .setPopup(popup(c.name, [`${c.currentOccupancy} / ${c.capacity} evacuees · ${st.label}`, `Brgy. ${c.barangay}`]))
         .addTo(m));
@@ -98,7 +101,7 @@ export default function MapView({ centers = [], incidents = [], height = 320, fo
     for (const i of incidents) {
       if (i.lat == null || i.lng == null) continue;
       const info = INCIDENT_INFO[i.type];
-      const element = pin(info.color, info.emoji);
+      const element = pin(info.color, info.icon);
       if (onIncidentClick) element.addEventListener('click', () => onIncidentClick(i.id));
       markers.current.push(new maplibregl.Marker({ element })
         .setLngLat([i.lng, i.lat])

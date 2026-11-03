@@ -13,9 +13,11 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      // Without a time limit a wrong address keeps the app spinning forever (photos get longer to upload)
+      signal: AbortSignal.timeout(opts.body !== undefined ? 30_000 : 15_000),
     });
   } catch {
-    throw new Error(`Cannot reach the server at ${API_URL}. Is the backend running?`);
+    throw new Error(`Cannot reach the server at ${API_URL}. Check that the backend is running and your phone is on the same Wi-Fi.`);
   }
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && token) {

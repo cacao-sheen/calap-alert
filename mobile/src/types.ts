@@ -23,6 +23,15 @@ export type Weather = {
   source: string;
 };
 
+// Live typhoon / rain from the backend (GDACS + Open-Meteo)
+export type WeatherEvent = {
+  kind: 'typhoon' | 'rain' | 'none';
+  title: string;
+  description: string;
+  source: string;
+  url: string | null;
+};
+
 export type DisasterEvent = {
   id: number;
   name: string;

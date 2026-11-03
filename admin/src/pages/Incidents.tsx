@@ -1,26 +1,29 @@
 import {
   IonBadge, IonButton, IonCard, IonCardContent, IonChip, IonIcon, IonInput, IonItem, IonLabel, IonList,
-  IonSelect, IonSelectOption, useIonToast,
+  IonSelect, IonSelectOption, useIonAlert, useIonToast,
 } from '@ionic/react';
-import { checkmarkCircle, refresh } from 'ionicons/icons';
+import { checkmarkCircle, personOutline, refresh, searchOutline, timeOutline } from 'ionicons/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import AdminPage from '../components/AdminPage';
+import Empty from '../components/Empty';
+import TypeIcon from '../components/TypeIcon';
 import MapView from '../components/MapView';
 import { usePageLoad } from '../hooks';
 import type { Barangay, Incident, IncidentDetail, IncidentStatus, IncidentType } from '../types';
-import { INCIDENT_INFO, INCIDENT_STATUS, timeAgo, timeOf, urlParam } from '../utils';
+import { INCIDENT_INFO, INCIDENT_STATUS, placeName, timeAgo, timeOf, urlParam } from '../utils';
 
 // What the admin can do next for each status
 const NEXT: Record<IncidentStatus, { to: IncidentStatus; label: string; color: string; fill?: 'outline' }[]> = {
-  pending: [{ to: 'verified', label: '✓ Verify report', color: 'primary' }, { to: 'resolved', label: 'Close (false report)', color: 'medium', fill: 'outline' }],
-  verified: [{ to: 'responding', label: '🚒 Dispatch team', color: 'primary' }],
-  responding: [{ to: 'resolved', label: '✓ Mark resolved', color: 'success' }],
+  pending: [{ to: 'verified', label: 'Verify report', color: 'primary' }, { to: 'resolved', label: 'Close (false report)', color: 'medium', fill: 'outline' }],
+  verified: [{ to: 'responding', label: 'Dispatch team', color: 'primary' }],
+  responding: [{ to: 'resolved', label: 'Mark resolved', color: 'success' }],
   resolved: [{ to: 'responding', label: 'Reopen', color: 'medium', fill: 'outline' }],
 };
 
 export default function Incidents() {
   const [toast] = useIonToast();
+  const [confirm] = useIonAlert();
   const [status, setStatus] = useState('active');
   const [type, setType] = useState<IncidentType | ''>('');
   const [barangayId, setBarangayId] = useState('all');
@@ -69,6 +72,16 @@ export default function Incidents() {
     }
   }
 
+  // Closing or reopening is easy to tap by mistake, so ask first
+  const ask = (to: IncidentStatus, label: string) => {
+    if (to !== 'resolved' && !(detail?.status === 'resolved')) return changeStatus(to);
+    confirm({
+      header: detail?.status === 'resolved' ? 'Reopen this incident?' : 'Close this incident?',
+      message: detail?.status === 'resolved' ? 'It will go back to "Responding".' : `"${label}" will mark it as resolved.`,
+      buttons: [{ text: 'Cancel', role: 'cancel' }, { text: 'Yes', handler: () => { changeStatus(to); } }],
+    });
+  };
+
   const counts = list.reduce<Record<string, number>>((acc, i) => ({ ...acc, [i.type]: (acc[i.type] ?? 0) + 1 }), {});
 
   return (
@@ -92,7 +105,7 @@ export default function Incidents() {
         <IonChip color={type === '' ? 'dark' : 'medium'} outline={type !== ''} onClick={() => setType('')}>All · {list.length}</IonChip>
         {(Object.keys(INCIDENT_INFO) as IncidentType[]).map((t) => (
           <IonChip key={t} color={type === t ? 'dark' : 'medium'} outline={type !== t} onClick={() => setType(t)}>
-            {INCIDENT_INFO[t].emoji} {INCIDENT_INFO[t].label}{counts[t] ? ` · ${counts[t]}` : ''}
+            <IonIcon icon={INCIDENT_INFO[t].icon} /><IonLabel>{INCIDENT_INFO[t].label}{counts[t] ? ` · ${counts[t]}` : ''}</IonLabel>
           </IonChip>
         ))}
       </div>
@@ -102,33 +115,33 @@ export default function Incidents() {
           <IonList lines="full">
             {list.map((i) => (
               <IonItem key={i.id} button detail={false} className={i.id === selectedId ? 'selected-item' : ''} onClick={() => setSelectedId(i.id)}>
-                <span slot="start" className="type-chip lg" style={{ background: INCIDENT_INFO[i.type].bg }}>{INCIDENT_INFO[i.type].emoji}</span>
+                <span slot="start"><TypeIcon type={i.type} large /></span>
                 <IonLabel className="ion-text-wrap">
-                  <h3><b>{INCIDENT_INFO[i.type].label} · {i.address ?? `Brgy. ${i.barangay ?? '—'}`}</b></h3>
+                  <h3><b>{INCIDENT_INFO[i.type].label} · {i.address ?? placeName(i.barangay)}</b></h3>
                   <p>{i.description}</p>
                   <p className="small">
-                    👤 {i.reporterName ?? 'Unknown'} · 🕒 {timeOf(i.createdAt)} ({timeAgo(i.createdAt)})
+                    <IonIcon icon={personOutline} className="meta-icon" /> {i.reporterName ?? 'Unknown'} · <IonIcon icon={timeOutline} className="meta-icon" /> {timeOf(i.createdAt)} ({timeAgo(i.createdAt)})
                     {i.severity === 'high' && <b className="t-danger"> · High severity</b>}
                   </p>
                 </IonLabel>
                 <IonBadge slot="end" color={INCIDENT_STATUS[i.status].color}>{INCIDENT_STATUS[i.status].label}</IonBadge>
               </IonItem>
             ))}
-            {!list.length && <IonItem><IonLabel className="muted">No incidents match these filters.</IonLabel></IonItem>}
+            {!list.length && <Empty icon={searchOutline} title="No incidents found" hint="Try a different status, barangay or type filter." />}
           </IonList>
         </IonCard>
 
         <IonCard className="panel detail">
           <IonCardContent className="stack">
             {!detail ? (
-              <p className="muted">Select an incident to see details.</p>
+              <Empty icon={searchOutline} title="Select an incident" hint="Pick one from the list to see its photo, location and response timeline." />
             ) : (
               <>
                 <div className="between">
                   <IonBadge color={INCIDENT_STATUS[detail.status].color}>{INCIDENT_STATUS[detail.status].label}</IonBadge>
                   <small className="muted">{detail.code}</small>
                 </div>
-                <h2>{INCIDENT_INFO[detail.type].label} — {detail.address ?? `Brgy. ${detail.barangay}`}</h2>
+                <h2>{INCIDENT_INFO[detail.type].label} — {detail.address ?? placeName(detail.barangay)}</h2>
                 {detail.photo && <img src={detail.photo} alt="Reported" className="photo" />}
                 {detail.lat != null && detail.lng != null && (
                   <MapView incidents={[detail]} height={180} focus={{ lat: detail.lat, lng: detail.lng }} zoom={16.5} />
@@ -137,7 +150,7 @@ export default function Incidents() {
                   <div className="stat"><small>Reported by</small><b>{detail.reporterName ?? '—'}</b></div>
                   <div className="stat"><small>Time</small><b>{timeOf(detail.createdAt)}</b></div>
                   <div className="stat"><small>Severity</small><b className={detail.severity === 'high' ? 't-danger' : ''}>{detail.severity}</b></div>
-                  <div className="stat"><small>Barangay</small><b>{detail.barangay ?? '—'}</b></div>
+                  <div className="stat"><small>Barangay</small><b className={detail.barangay ? '' : 't-warning'}>{detail.barangay ?? 'Outside Ibaba'}</b></div>
                 </div>
                 <p className="quote">“{detail.description}”</p>
                 <b>Response timeline</b>
@@ -157,7 +170,7 @@ export default function Incidents() {
                   placeholder="e.g. Rescue Team Alpha" value={note} onIonInput={(e) => setNote(e.detail.value ?? '')} />
                 <div className="row">
                   {NEXT[detail.status].map((a) => (
-                    <IonButton key={a.to} className="grow" color={a.color} fill={a.fill ?? 'solid'} onClick={() => changeStatus(a.to)}>{a.label}</IonButton>
+                    <IonButton key={a.to} className="grow" color={a.color} fill={a.fill ?? 'solid'} onClick={() => ask(a.to, a.label)}>{a.label}</IonButton>
                   ))}
                 </div>
               </>
