@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "592113722704",
+    "project_id": "calap-alert",
+    "storage_bucket": "calap-alert.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:592113722704:android:75898fce6178b64ba33855",
+        "android_client_info": {
+          "package_name": "ph.calapalert.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiHIdwbN0-outQRixpQ8QT_YzslxMuShg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
