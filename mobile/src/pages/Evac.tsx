@@ -5,6 +5,7 @@ import {
 import { businessOutline, mapOutline, navigate, walkOutline } from 'ionicons/icons';
 import { useState } from 'react';
 import { api } from '../api';
+import NotifBell from '../components/NotifBell';
 import Empty from '../components/Empty';
 import { usePageLoad } from '../hooks';
 import type { EvacCenter } from '../types';
@@ -47,6 +48,7 @@ export default function Evac() {
       <IonHeader className="app-header">
         <IonToolbar>
           <IonTitle>Evacuation centers<span className="header-sub">Nearest to you first</span></IonTitle>
+          <NotifBell slot="end" />
         </IonToolbar>
       </IonHeader>
       <IonContent>

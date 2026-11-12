@@ -3,13 +3,13 @@ import {
   useIonRouter,
 } from '@ionic/react';
 import {
-  businessOutline, callOutline, navigateOutline, notificationsOutline, checkmarkCircle, cloudOutline, handLeftOutline, mapOutline, megaphone,
+  businessOutline, callOutline, navigateOutline, checkmarkCircle, cloudOutline, handLeftOutline, mapOutline, megaphone,
   rainyOutline, shieldCheckmark, speedometerOutline, thunderstorm, warningOutline, waterOutline,
 } from 'ionicons/icons';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import LogoMark from '../components/LogoMark';
-import { SEEN_KEY } from './Alerts';
+import NotifBell from '../components/NotifBell';
 import { usePageLoad } from '../hooks';
 import type { Alert, DisasterEvent, ResidentStatus, Weather, WeatherEvent } from '../types';
 import { STATUS_LABEL, timeAgo, weatherText } from '../utils';
@@ -32,7 +32,6 @@ export default function Home() {
   const [alert, setAlert] = useState<Alert | null>(null);
   const [status, setStatus] = useState<ResidentStatus | null>(null);
   const [error, setError] = useState('');
-  const [unread, setUnread] = useState(false);
 
   async function load() {
     setError('');
@@ -49,7 +48,6 @@ export default function Home() {
       setEvent(s.event);
       setStatus(s.me);
       setAlert(alerts[0] ?? null);
-      setUnread(!!alerts[0] && alerts[0].id > Number(localStorage.getItem(SEEN_KEY) ?? 0));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -79,10 +77,7 @@ export default function Home() {
           <div className="hero-brand">
             <span className="logo-tile"><LogoMark size={26} /></span>
             <span className="grow">Calap Alert</span>
-            <button className="bell" onClick={() => go('/tabs/alerts')} aria-label="Notifications">
-              <IonIcon icon={notificationsOutline} />
-              {unread && <i />}
-            </button>
+            <NotifBell />
           </div>
           <h1>{greeting()}{me ? `, ${me.firstName}!` : '!'}</h1>
           <div className="sub">

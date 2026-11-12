@@ -2,18 +2,17 @@ import {
   IonBackButton, IonBadge, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonPage, IonRefresher,
   IonRefresherContent, IonSkeletonText, IonTitle, IonToolbar, useIonRouter,
 } from '@ionic/react';
-import { checkmarkCircleOutline, megaphoneOutline, navigateOutline, notificationsOffOutline, walkOutline } from 'ionicons/icons';
+import { checkmarkCircleOutline, megaphoneOutline, navigateOutline, notificationsOffOutline, peopleOutline, walkOutline } from 'ionicons/icons';
 import { useState } from 'react';
 import { api } from '../api';
 import Empty from '../components/Empty';
 import { usePageLoad } from '../hooks';
+import { SEEN_KEY, useNotifications } from '../notifications';
 import type { Alert } from '../types';
 import { timeAgo } from '../utils';
 
 type Me = { barangayId: number };
 
-// Remembers the newest alert the resident has seen, so Home can show a dot for new ones
-export const SEEN_KEY = 'lastSeenAlertId';
 
 function color(a: Alert) {
   if (a.endedAt) return '#64748b';
@@ -24,6 +23,7 @@ export default function Alerts() {
   const router = useIonRouter();
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [error, setError] = useState('');
+  const { requests, refresh } = useNotifications();
 
   async function load() {
     try {
@@ -32,6 +32,7 @@ export default function Alerts() {
       setAlerts(list);
       setError('');
       if (list[0]) localStorage.setItem(SEEN_KEY, String(list[0].id));
+      refresh(); // clears the bell's dot for alerts; family requests stay until answered
     } catch (e) {
       setError((e as Error).message);
     }
@@ -72,7 +73,7 @@ export default function Alerts() {
       <IonHeader className="app-header">
         <IonToolbar>
           <IonButtons slot="start"><IonBackButton defaultHref="/tabs/home" /></IonButtons>
-          <IonTitle>Notifications<span className="header-sub">Alerts from your barangay and CDRRMO</span></IonTitle>
+          <IonTitle>Notifications<span className="header-sub">Alerts and family requests</span></IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent>
@@ -83,13 +84,30 @@ export default function Alerts() {
           {error && <div className="error-card">{error}</div>}
           {alerts === null && !error && [0, 1, 2].map((i) => <div key={i} className="card"><IonSkeletonText animated style={{ height: 60 }} /></div>)}
 
+          {requests.received.length > 0 && <div className="section-title">Family requests</div>}
+          {requests.received.map((inv) => (
+            <div key={`req-${inv.id}`} className="card notif" style={{ borderLeftColor: '#2563eb' }}>
+              <div className="row" style={{ alignItems: 'flex-start' }}>
+                <span className="chip-icon solid-icon" style={{ background: '#2563eb' }}><IonIcon icon={peopleOutline} /></span>
+                <div className="grow">
+                  <span className="small muted">Family members · {timeAgo(inv.createdAt)}</span>
+                  <b>{inv.fromName}</b>
+                  <p className="small" style={{ margin: '2px 0 0' }}>wants to add you to their Family members as their {inv.relationship.toLowerCase()}.</p>
+                </div>
+              </div>
+              <IonButton expand="block" size="small" style={{ marginTop: 12 }} onClick={() => router.push('/tabs/family/requests')}>
+                View request
+              </IonButton>
+            </div>
+          ))}
+
           {active.length > 0 && <div className="section-title">Active now</div>}
           {active.map(card)}
 
           {past.length > 0 && <div className="section-title">Earlier</div>}
           {past.map(card)}
 
-          {alerts?.length === 0 && (
+          {alerts?.length === 0 && requests.received.length === 0 && (
             <Empty icon={notificationsOffOutline} title="No alerts yet" hint="When your barangay or CDRRMO sends an alert, it shows up here and on your phone." />
           )}
         </div>

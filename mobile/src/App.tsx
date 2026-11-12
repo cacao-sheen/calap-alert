@@ -15,6 +15,9 @@ import Report from './pages/Report';
 import Evac from './pages/Evac';
 import Safety from './pages/Safety';
 import Result from './pages/Result';
+import Family from './pages/Family';
+import FamilyRequests from './pages/FamilyRequests';
+import { NotificationsProvider } from './notifications';
 
 /* Ionic core CSS */
 import '@ionic/react/css/core.css';
@@ -32,42 +35,46 @@ setupIonicReact({ mode: 'md' });
 
 function Tabs() {
   return (
-    <IonTabs>
-      <IonRouterOutlet>
-        <Route exact path="/tabs/home" component={Home} />
-        <Route exact path="/tabs/map" component={MapPage} />
-        <Route exact path="/tabs/report" component={Report} />
-        <Route exact path="/tabs/evac" component={Evac} />
-        <Route exact path="/tabs/me" component={Safety} />
-        <Route exact path="/tabs/result/:kind" component={Result} />
-        <Route exact path="/tabs/alerts" component={Alerts} />
-        <Route exact path="/tabs">
-          <Redirect to="/tabs/home" />
-        </Route>
-      </IonRouterOutlet>
-      <IonTabBar slot="bottom">
-        <IonTabButton tab="home" href="/tabs/home">
-          <IonIcon icon={homeOutline} />
-          <IonLabel>Home</IonLabel>
-        </IonTabButton>
-        <IonTabButton tab="map" href="/tabs/map">
-          <IonIcon icon={mapOutline} />
-          <IonLabel>Map</IonLabel>
-        </IonTabButton>
-        <IonTabButton tab="report" href="/tabs/report" className="tab-report">
-          <IonIcon icon={warning} />
-          <IonLabel>Report</IonLabel>
-        </IonTabButton>
-        <IonTabButton tab="evac" href="/tabs/evac">
-          <IonIcon icon={businessOutline} />
-          <IonLabel>Evac</IonLabel>
-        </IonTabButton>
-        <IonTabButton tab="me" href="/tabs/me">
-          <IonIcon icon={personCircleOutline} />
-          <IonLabel>Me</IonLabel>
-        </IonTabButton>
-      </IonTabBar>
-    </IonTabs>
+    <NotificationsProvider>
+      <IonTabs>
+        <IonRouterOutlet>
+          <Route exact path="/tabs/home" component={Home} />
+          <Route exact path="/tabs/map" component={MapPage} />
+          <Route exact path="/tabs/report" component={Report} />
+          <Route exact path="/tabs/evac" component={Evac} />
+          <Route exact path="/tabs/me" component={Safety} />
+          <Route exact path="/tabs/result/:kind" component={Result} />
+          <Route exact path="/tabs/alerts" component={Alerts} />
+          <Route exact path="/tabs/family" component={Family} />
+          <Route exact path="/tabs/family/requests" component={FamilyRequests} />
+          <Route exact path="/tabs">
+            <Redirect to="/tabs/home" />
+          </Route>
+        </IonRouterOutlet>
+        <IonTabBar slot="bottom">
+          <IonTabButton tab="home" href="/tabs/home">
+            <IonIcon icon={homeOutline} />
+            <IonLabel>Home</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="map" href="/tabs/map">
+            <IonIcon icon={mapOutline} />
+            <IonLabel>Map</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="report" href="/tabs/report" className="tab-report">
+            <IonIcon icon={warning} />
+            <IonLabel>Report</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="evac" href="/tabs/evac">
+            <IonIcon icon={businessOutline} />
+            <IonLabel>Evac</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="me" href="/tabs/me">
+            <IonIcon icon={personCircleOutline} />
+            <IonLabel>Me</IonLabel>
+          </IonTabButton>
+        </IonTabBar>
+      </IonTabs>
+    </NotificationsProvider>
   );
 }
 

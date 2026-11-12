@@ -6,6 +6,7 @@ import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../api';
+import NotifBell from '../components/NotifBell';
 import LiveView from '../components/LiveView';
 import { usePageLoad } from '../hooks';
 import type { EvacCenter, Incident } from '../types';
@@ -159,6 +160,7 @@ export default function MapPage() {
     <IonPage>
       <IonContent scrollY={false}>
         <div ref={container} className="map-container" />
+        <div className="map-bell"><NotifBell light /></div>
         <div className="map-top">
           <IonSegment value={mode} onIonChange={(e) => setMode(e.detail.value as '2d' | '3d')}>
             <IonSegmentButton value="2d"><IonLabel>2D</IonLabel></IonSegmentButton>

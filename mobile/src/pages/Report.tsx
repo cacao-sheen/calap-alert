@@ -5,6 +5,7 @@ import {
 import { cameraOutline, closeCircle, locateOutline, refreshOutline, send } from 'ionicons/icons';
 import { useRef, useState, type CSSProperties } from 'react';
 import { api } from '../api';
+import NotifBell from '../components/NotifBell';
 import PinMap from '../components/PinMap';
 import { usePageLoad } from '../hooks';
 import type { Incident, IncidentType } from '../types';
@@ -93,6 +94,7 @@ export default function Report() {
       <IonHeader className="app-header">
         <IonToolbar>
           <IonTitle>Report an incident<span className="header-sub">Goes straight to Calapan CDRRMO</span></IonTitle>
+          <NotifBell slot="end" />
         </IonToolbar>
       </IonHeader>
       <IonContent>

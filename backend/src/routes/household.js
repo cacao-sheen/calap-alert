@@ -131,7 +131,7 @@ router.post('/invites', async (req, res) => {
     userId: to.user_id,
     title: 'Family members invite',
     body: `${me.first_name} ${me.last_name} wants to add you to their Family members. Open the app to accept.`,
-    route: '/tabs/me',
+    route: '/tabs/family/requests',
   }).catch((err) => console.warn('Push failed:', err.message));
   res.status(201).json({ ok: true });
 });

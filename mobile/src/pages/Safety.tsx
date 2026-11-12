@@ -3,19 +3,17 @@ import {
   IonSelect, IonSelectOption, IonTitle, IonToggle, IonToolbar, useIonAlert, useIonRouter, useIonToast,
 } from '@ionic/react';
 import {
-  businessOutline, chevronDown, closeOutline, chevronForward, handLeftOutline, informationCircleOutline, locationOutline,
-  logOutOutline, peopleOutline, personAddOutline, shieldCheckmark,
+  businessOutline, chevronDown, chevronForward, handLeftOutline, informationCircleOutline, locationOutline,
+  logOutOutline, peopleOutline, shieldCheckmark,
 } from 'ionicons/icons';
 import { useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import { useAuth } from '../auth';
-import AddMemberModal from '../components/AddMemberModal';
-import Empty from '../components/Empty';
+import NotifBell from '../components/NotifBell';
 import { usePageLoad } from '../hooks';
-import type { DisasterEvent, EvacCenter, HouseholdInvite, ResidentStatus, SafetyStatus } from '../types';
-import { getLocation, RELATIONSHIPS, STATUS_COLOR, STATUS_LABEL, timeAgo, timeOf } from '../utils';
-
-const AVATAR_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#0e7490', '#b45309', '#334155', '#ea580c'];
+import { useNotifications } from '../notifications';
+import type { DisasterEvent, EvacCenter, ResidentStatus, SafetyStatus } from '../types';
+import { getLocation, STATUS_LABEL, timeAgo } from '../utils';
 
 export default function Safety() {
   const { logout } = useAuth();
@@ -24,29 +22,22 @@ export default function Safety() {
   const [confirm] = useIonAlert();
   const [event, setEvent] = useState<DisasterEvent | null>(null);
   const [mine, setMine] = useState<ResidentStatus | null>(null);
-  const [household, setHousehold] = useState<ResidentStatus[] | null>(null);
   const [centers, setCenters] = useState<EvacCenter[]>([]);
   const [centerId, setCenterId] = useState<number | null>(null);
   const [atCenterOpen, setAtCenterOpen] = useState(false);
   const [shareLocation, setShareLocation] = useState(() => localStorage.getItem('shareLocation') !== 'false');
   const [busy, setBusy] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const [invites, setInvites] = useState<{ received: HouseholdInvite[]; sent: HouseholdInvite[] }>({ received: [], sent: [] });
+  const { requests } = useNotifications();
 
   async function load() {
     try {
-      const [s, h, c, inv] = await Promise.all([
+      const [s, c] = await Promise.all([
         api<{ event: DisasterEvent | null; me: ResidentStatus | null }>('/checkins/me'),
-        api<ResidentStatus[]>('/checkins/household'),
         api<EvacCenter[]>('/evacuation-centers'),
-        // invites are extra; don't let them break the rest of the page
-        api<{ received: HouseholdInvite[]; sent: HouseholdInvite[] }>('/household/invites').catch(() => ({ received: [], sent: [] })),
       ]);
       setEvent(s.event);
       setMine(s.me);
-      setHousehold(h);
       setCenters(c.filter((x) => x.isOpen));
-      setInvites(inv);
     } catch (e) {
       toast({ message: (e as Error).message, duration: 3000, color: 'danger' });
     }
@@ -80,38 +71,6 @@ export default function Safety() {
       buttons: [{ text: 'Cancel', role: 'cancel' }, { text: 'Yes, I need help', handler: () => { checkIn('need_help'); } }],
     });
 
-  // acceptAs = what the inviter is to me (accept); null = decline (received) or cancel (sent)
-  async function answerInvite(invite: HouseholdInvite, acceptAs: string | null) {
-    try {
-      if (acceptAs) await api(`/household/invites/${invite.id}/accept`, { method: 'POST', body: { relationship: acceptAs } });
-      else await api(`/household/invites/${invite.id}`, { method: 'DELETE' });
-      toast({
-        message: acceptAs ? `${invite.fromName} is now in your Family members` : 'Invite removed',
-        duration: 2000,
-        color: acceptAs ? 'success' : 'medium',
-      });
-    } catch (e) {
-      toast({ message: (e as Error).message, duration: 3000, color: 'danger' });
-    }
-    load();
-  }
-
-  const acceptInvite = (invite: HouseholdInvite) =>
-    confirm({
-      header: `What is ${invite.fromName} to you?`,
-      inputs: RELATIONSHIPS.map((r) => ({ type: 'radio' as const, label: r, value: r })),
-      buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        {
-          text: 'Accept',
-          handler: (value?: string) => {
-            if (!value) return false; // keep the box open until they pick one
-            answerInvite(invite, value);
-          },
-        },
-      ],
-    });
-
   const toggleShare = (v: boolean) => {
     setShareLocation(v);
     localStorage.setItem('shareLocation', String(v));
@@ -124,6 +83,7 @@ export default function Safety() {
       <IonHeader className="app-header">
         <IonToolbar>
           <IonTitle>My Safety</IonTitle>
+          <NotifBell slot="end" />
         </IonToolbar>
       </IonHeader>
       <IonContent>
@@ -183,57 +143,18 @@ export default function Safety() {
             <IonIcon icon={chevronForward} className="muted" />
           </button>
 
-          {invites.received.map((inv) => (
-            <div key={inv.id} className="alert-banner info">
-              <IonIcon icon={peopleOutline} />
-              <div className="grow">
-                <div className="kicker">Family members invite</div>
-                <b>{inv.fromName}</b>
-                <p>wants to add you to their Family members as their {inv.relationship.toLowerCase()}.</p>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <IonButton size="small" onClick={() => acceptInvite(inv)}>Accept</IonButton>
-                  <IonButton size="small" fill="outline" color="medium" onClick={() => answerInvite(inv, null)}>Decline</IonButton>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          <div className="between" style={{ marginBottom: -8 }}>
-            <div className="section-title">Family members</div>
-            <IonButton size="small" fill="clear" onClick={() => setAddOpen(true)}><IonIcon slot="start" icon={personAddOutline} />Add</IonButton>
-          </div>
-          <div className="card" style={{ padding: '4px 16px' }}>
-            {household === null && <p className="small muted">Loading…</p>}
-            {household?.length === 0 && <Empty icon={peopleOutline} title="No family members yet" hint="Tap Add to add your family and friends." />}
-            {household?.map((m, i) => (
-              <div key={m.id} className="row member">
-                <span className="avatar" style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>{m.firstName[0]}{m.lastName[0]}</span>
-                <div className="grow">
-                  <b className="small">{m.firstName} {m.lastName}{i === 0 ? ' (You)' : ''}</b>
-                  <div className="small muted">{[m.relationship, m.age != null && m.age >= 60 ? 'Senior' : null].filter(Boolean).join(' · ') || '—'}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <IonBadge color={STATUS_COLOR[m.status]}>{STATUS_LABEL[m.status]}</IonBadge>
-                  <div className="small muted" style={{ marginTop: 4 }}>
-                    {m.checkedInAt ? timeOf(m.checkedInAt) : ''}{m.centerName ? ` · ${m.centerName}` : ''}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {invites.sent.map((inv) => (
-              <div key={`invite-${inv.id}`} className="row member">
-                <span className="avatar" style={{ background: '#cbd5e1' }}>{inv.toName?.[0]}</span>
-                <div className="grow">
-                  <b className="small">{inv.toName}</b>
-                  <div className="small muted">{inv.relationship} · Invite sent</div>
-                </div>
-                <IonBadge color="warning">Waiting</IonBadge>
-                <IonButton size="small" fill="clear" color="medium" aria-label="Cancel invite" onClick={() => answerInvite(inv, null)}>
-                  <IonIcon slot="icon-only" icon={closeOutline} />
-                </IonButton>
-              </div>
-            ))}
-          </div>
+          <div className="section-title">Family members</div>
+          <button className="choice" style={{ '--c': '#2563eb' } as CSSProperties} onClick={() => router.push('/tabs/family')}>
+            <span className="chip-icon"><IonIcon icon={peopleOutline} /></span>
+            <span className="grow">
+              <b>Family members</b>
+              <span className="small">
+                {requests.received.length ? `${requests.received.length} new request${requests.received.length > 1 ? 's' : ''}` : 'See if your family and friends are safe'}
+              </span>
+            </span>
+            {requests.received.length > 0 && <IonBadge color="danger">{requests.received.length}</IonBadge>}
+            <IonIcon icon={chevronForward} className="muted" />
+          </button>
 
           <div className="section-title">Settings</div>
           <div className="card settings" style={{ padding: '4px 16px' }}>
@@ -252,10 +173,6 @@ export default function Safety() {
             </IonItem>
           </div>
         </div>
-        <AddMemberModal isOpen={addOpen} onClose={() => setAddOpen(false)} onDone={(message) => {
-          load();
-          toast({ message, duration: 2500, color: 'success' });
-        }} />
       </IonContent>
     </IonPage>
   );
