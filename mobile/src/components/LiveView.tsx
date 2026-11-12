@@ -271,10 +271,11 @@ function Camera({ centers, firstId, onClose }: { centers: EvacCenter[]; firstId:
   const reached = reachedId === target.id;
 
   const [ask] = useIonAlert();
+  // Both the ✕ and "End Live View" ask first, so a mis-tap never stops the guidance
   const confirmEnd = () =>
     ask({
       header: 'End Live View?',
-      message: `You reached ${target.name}.`,
+      message: reached ? `You reached ${target.name}.` : `You haven't reached ${target.name} yet.`,
       buttons: [{ text: 'Not yet', role: 'cancel' }, { text: 'End', handler: onClose }],
     });
 
@@ -293,7 +294,7 @@ function Camera({ centers, firstId, onClose }: { centers: EvacCenter[]; firstId:
         <IonSelect value={targetId} interface="popover" onIonChange={(e) => setTargetId(e.detail.value)} aria-label="Evacuation center">
           {centers.map((c) => <IonSelectOption key={c.id} value={c.id}>{c.name}</IonSelectOption>)}
         </IonSelect>
-        <IonButton fill="clear" color="light" onClick={onClose} aria-label="Close"><IonIcon slot="icon-only" icon={close} /></IonButton>
+        <IonButton fill="clear" color="light" onClick={confirmEnd} aria-label="Close"><IonIcon slot="icon-only" icon={close} /></IonButton>
       </div>
 
       {!reached && (

@@ -1,6 +1,6 @@
 import {
   IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon,
-  IonInput, IonModal, IonTitle, IonToggle, IonToolbar, useIonAlert, useIonToast,
+  IonInput, IonLabel, IonModal, IonSegment, IonSegmentButton, IonTitle, IonToggle, IonToolbar, useIonAlert, useIonToast,
 } from '@ionic/react';
 import { add, arrowBack, businessOutline, locationOutline } from 'ionicons/icons';
 import { useState } from 'react';
@@ -211,9 +211,14 @@ export default function Evacuation() {
                 <div className="confirm-card">
                   <div className="confirm-place"><IonIcon icon={locationOutline} className="t-danger" /> {form.name || <span className="muted">Unnamed spot</span>}</div>
                   <div className="muted small">{form.address || 'Finding the address…'}</div>
-                  {!form.name && (
-                    <IonInput className="ion-margin-top" label="Name of this place" labelPlacement="stacked" fill="outline" placeholder="e.g. Ibaba East Covered Court" onIonInput={(e) => setField({ name: e.detail.value ?? '' })} />
-                  )}
+                  {/* Always shown (filled in when the map knows the place) so the admin can type or fix the name */}
+                  <IonInput className="ion-margin-top" label="Name of this place" labelPlacement="stacked" fill="outline" placeholder="e.g. Ibaba East Covered Court"
+                    value={form.name} onIonInput={(e) => setField({ name: e.detail.value ?? '' })} />
+                  <div className="small ion-margin-top">Which barangay will it serve?</div>
+                  <IonSegment value={form.barangay || undefined} onIonChange={(e) => setField({ barangay: String(e.detail.value) })}>
+                    <IonSegmentButton value="Ibaba East"><IonLabel>Ibaba East</IonLabel></IonSegmentButton>
+                    <IonSegmentButton value="Ibaba West"><IonLabel>Ibaba West</IonLabel></IonSegmentButton>
+                  </IonSegment>
                   <IonButton className="ion-margin-top" expand="block" disabled={!form.name.trim() || !form.barangay} onClick={() => setStep('details')}>Confirm location</IonButton>
                 </div>
               )}

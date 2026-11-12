@@ -144,6 +144,7 @@ tr.row-alert td { background: #fff7f7; }
 .link:hover { text-decoration: underline; }
 .step { margin: 4px 0 8px; font-size: 14px; }
 .picker-map { height: 280px; margin-bottom: 4px; }
+.picker-view { width: 170px; }
 .picker-search { display: flex; align-items: center; gap: 6px; }
 .picker-search ion-searchbar { padding: 0; flex: 1; }
 

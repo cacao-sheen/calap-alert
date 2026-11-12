@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { metersBetween, nearestBarangay } from '../geo.js';
+import { barangayAt, metersBetween, nearestBarangay } from '../geo.js';
 import { httpError } from '../http.js';
 
 const router = Router();
@@ -27,8 +27,11 @@ async function reverse(lat, lng, extra = {}) {
 
 const roadOf = (j) => j?.address?.road ?? j?.address?.pedestrian ?? j?.address?.neighbourhood ?? null;
 
-const cleanAddress = (street, lat, lng) =>
-  [street, `Brgy. ${nearestBarangay(lat, lng).name}`, 'Calapan City'].filter(Boolean).join(', ');
+// Names the barangay only when the spot is really inside Ibaba East / West (not just the nearer one)
+const cleanAddress = (street, lat, lng) => {
+  const brgy = barangayAt(lat, lng);
+  return [street, brgy && `Brgy. ${brgy}`, 'Calapan City'].filter(Boolean).join(', ');
+};
 
 // Photon (free OpenStreetMap search, built for search-as-you-type) knows named places and their streets
 // much better than Nominatim does for Calapan.

@@ -1,4 +1,4 @@
-import { IonButton, IonIcon, IonItem, IonLabel, IonList, IonSearchbar } from '@ionic/react';
+import { IonButton, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton } from '@ionic/react';
 import { businessOutline, locate } from 'ionicons/icons';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
@@ -7,6 +7,8 @@ import type { EvacCenter } from '../types';
 import { pin } from './MapView';
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+// Free satellite photos (Esri World Imagery, no API key) so the admin can see the real buildings and shops
+const SATELLITE_TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const IBABA = { lat: 13.4135, lng: 121.18 };
 
 type Result = { title: string; detail: string; kind: string; address: string; barangay: string; lat: number; lng: number };
@@ -38,6 +40,9 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
   const [text, setText] = useState('');
   const [results, setResults] = useState<Result[]>([]);
   const [note, setNote] = useState('');
+  const [view, setView] = useState<'satellite' | 'map'>('satellite');
+  const viewNow = useRef(view);
+  viewNow.current = view;
 
   // Keep the latest callbacks for the map listeners, which are created only once
   const lookup = useRef(0); // only the newest click's answer is used
@@ -69,6 +74,18 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
     const m = new maplibregl.Map({ container: el.current, style: MAP_STYLE, center: [start.lng, start.lat], zoom: 15.5 });
     m.addControl(new maplibregl.NavigationControl(), 'top-right');
     m.on('click', (e) => choose(e.lngLat.lat, e.lngLat.lng));
+    // Satellite photo goes under the first label layer, so street and place names still show on top of it
+    m.on('load', () => {
+      const firstLabel = m.getStyle().layers?.find((l) => l.type === 'symbol')?.id;
+      m.addSource('satellite', {
+        type: 'raster', tiles: [SATELLITE_TILES], tileSize: 256, maxzoom: 19,
+        attribution: 'Imagery © Esri, Maxar, Earthstar Geographics',
+      });
+      m.addLayer({
+        id: 'satellite', type: 'raster', source: 'satellite',
+        layout: { visibility: viewNow.current === 'satellite' ? 'visible' : 'none' },
+      }, firstLabel);
+    });
 
     // Existing centers (grey) so the admin can see what is already pinned nearby
     for (const c of centers) {
@@ -88,6 +105,11 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
       marker.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const m = map.current;
+    if (m?.getLayer('satellite')) m.setLayoutProperty('satellite', 'visibility', view === 'satellite' ? 'visible' : 'none');
+  }, [view]);
 
   // Move the red pin whenever the latitude/longitude change (typed, clicked, searched or dragged)
   useEffect(() => {
@@ -182,7 +204,13 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
           ))}
         </IonList>
       )}
-      <div className="map-wrap picker-map"><div ref={el} className="map" /></div>
+      <div className="map-wrap picker-map">
+        <IonSegment className="map-toggle picker-view" value={view} onIonChange={(e) => setView(e.detail.value as 'satellite' | 'map')}>
+          <IonSegmentButton value="satellite"><IonLabel>Satellite</IonLabel></IonSegmentButton>
+          <IonSegmentButton value="map"><IonLabel>Map</IonLabel></IonSegmentButton>
+        </IonSegment>
+        <div ref={el} className="map" />
+      </div>
       <p className="muted small">Click the map or drag the red pin to set the exact spot. Grey pins are existing centers.</p>
     </div>
   );
