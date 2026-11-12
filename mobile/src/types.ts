@@ -105,3 +105,5 @@ export type HouseholdInvite = {
   fromName?: string; // set on invites I received
   toName?: string; // set on invites I sent
 };
+
+export type AccountMatch = { id: number; name: string; barangay: string; purok: string | null };

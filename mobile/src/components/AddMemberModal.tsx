@@ -1,12 +1,14 @@
 import {
-  IonButton, IonButtons, IonContent, IonHeader, IonInput, IonLabel, IonModal, IonSegment, IonSegmentButton, IonSelect,
-  IonSelectOption, IonSpinner, IonTitle, IonToggle, IonToolbar,
+  IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonList, IonModal, IonSegment,
+  IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonTitle, IonToggle, IonToolbar,
 } from '@ionic/react';
+import { checkmarkCircle } from 'ionicons/icons';
 import { useState, type FormEvent } from 'react';
 import { api } from '../api';
+import type { AccountMatch } from '../types';
 
 const RELATIONSHIPS = ['Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Brother', 'Sister', 'Grandfather', 'Grandmother', 'Grandchild', 'Relative', 'Other'];
-const EMPTY = { email: '', firstName: '', lastName: '', relationship: '', birthDate: '', sex: '', isPwd: false };
+const EMPTY = { lookup: '', firstName: '', lastName: '', relationship: '', birthDate: '', sex: '', isPwd: false };
 
 type Mode = 'account' | 'manual';
 type Props = { isOpen: boolean; onClose: () => void; onDone: (message: string) => void };
@@ -16,22 +18,43 @@ export default function AddMemberModal({ isOpen, onClose, onDone }: Props) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [matches, setMatches] = useState<AccountMatch[] | null>(null);
+  const [picked, setPicked] = useState<AccountMatch | null>(null);
+  const [searching, setSearching] = useState(false);
 
   const set = (key: keyof typeof form) => (e: CustomEvent) => setForm((f) => ({ ...f, [key]: e.detail.value ?? '' }));
+
+  // null = nothing searched yet; [] = searched, no match
+  async function search(q: string) {
+    setForm((f) => ({ ...f, lookup: q }));
+    setPicked(null);
+    if (q.trim().length < 3) return setMatches(null);
+    setSearching(true);
+    try {
+      setMatches(await api<AccountMatch[]>(`/household/search?q=${encodeURIComponent(q.trim())}`));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    if (mode === 'account' && !picked) return setError('Search for their account and tap their name');
     if (!form.relationship) return setError('Please choose how they are related to you');
     setBusy(true);
     try {
       if (mode === 'account') {
-        await api('/household/invites', { method: 'POST', body: { email: form.email, relationship: form.relationship } });
+        await api('/household/invites', { method: 'POST', body: { residentId: picked!.id, relationship: form.relationship } });
       } else {
-        const { email, ...member } = form;
+        const { lookup, ...member } = form;
         await api('/household/members', { method: 'POST', body: member });
       }
       setForm(EMPTY);
+      setMatches(null);
+      setPicked(null);
       onDone(mode === 'account' ? 'Invite sent. They will join once they accept.' : 'Family member added');
       onClose();
     } catch (err) {
@@ -66,9 +89,27 @@ export default function AddMemberModal({ isOpen, onClose, onDone }: Props) {
           {mode === 'account' ? (
             <>
               <p className="small muted" style={{ margin: 0 }}>
-                Enter the email they used to sign up. They will get an invite and join your household once they accept.
+                Search for their account, then tap their name. They will get an invite and join your household once they accept.
               </p>
-              <IonInput label="Their email" labelPlacement="floating" fill="outline" type="email" value={form.email} onIonInput={set('email')} required />
+              <IonInput label="Their email or full name" labelPlacement="floating" fill="outline" debounce={400}
+                value={form.lookup} onIonInput={(e) => search(e.detail.value ?? '')} />
+              {searching && <p className="small muted" style={{ margin: 0 }}>Searching…</p>}
+              {matches && matches.length === 0 && (
+                <p className="small muted" style={{ margin: 0 }}>No account found. Check the spelling, or type their full email.</p>
+              )}
+              {matches && matches.length > 0 && (
+                <IonList inset={false} lines="full" style={{ borderRadius: 12 }}>
+                  {matches.map((m) => (
+                    <IonItem key={m.id} button detail={false} onClick={() => setPicked(m)}>
+                      <IonLabel>
+                        <b>{m.name}</b>
+                        <p>Brgy. {m.barangay}{m.purok ? ` · ${m.purok}` : ''}</p>
+                      </IonLabel>
+                      {picked?.id === m.id && <IonIcon slot="end" color="primary" icon={checkmarkCircle} />}
+                    </IonItem>
+                  ))}
+                </IonList>
+              )}
               {relationshipSelect}
             </>
           ) : (

@@ -89,18 +89,35 @@ router.get('/invites', async (req, res) => {
   });
 });
 
-// Invite a family member's account by the email they signed up with
+// Find accounts to invite by full name (partial is fine) or by email (must be typed in full,
+// so nobody can fish for other people's emails). Emails are never sent back.
+router.get('/search', async (req, res) => {
+  const residentId = myResidentId(req);
+  const q = String(req.query.q ?? '').trim();
+  if (q.length < 3) return res.json([]);
+  const { rows } = await query(
+    `SELECT r.id, r.first_name || ' ' || r.last_name AS name, b.name AS barangay, r.purok
+     FROM users u JOIN residents r ON r.id = u.resident_id JOIN barangays b ON b.id = r.barangay_id
+     WHERE r.id <> $1
+       AND (lower(u.email) = lower($2) OR r.first_name || ' ' || r.last_name ILIKE $3)
+     ORDER BY r.last_name, r.first_name LIMIT 8`,
+    [residentId, q, `%${q.replace(/[%_\\]/g, '\\$&')}%`],
+  );
+  res.json(rows);
+});
+
+// Invite a family member's account (picked from the search)
 router.post('/invites', async (req, res) => {
   const residentId = myResidentId(req);
-  const { email, relationship } = req.body ?? {};
-  required({ email, relationship });
+  const { residentId: toId, relationship } = req.body ?? {};
+  required({ residentId: toId, relationship });
 
   const { rows: [to] } = await query(
     `SELECT u.id AS user_id, r.id, r.household_id FROM users u JOIN residents r ON r.id = u.resident_id
-     WHERE lower(u.email) = lower($1)`,
-    [String(email).trim()],
+     WHERE r.id = $1`,
+    [toId],
   );
-  if (!to) throw httpError(404, 'No Calap Alert account uses that email. Ask them to sign up first.');
+  if (!to) throw httpError(404, 'That account was not found. Ask them to sign up first.');
   if (to.id === residentId) throw httpError(400, 'That is your own account');
   const { rows: [me] } = await query(
     'SELECT first_name, last_name, household_id FROM residents WHERE id = $1',
