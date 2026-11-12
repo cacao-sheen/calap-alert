@@ -1,7 +1,7 @@
 import {
-  IonButton, IonContent, IonIcon, IonLabel, IonPage, IonSegment, IonSegmentButton,
+  IonButton, IonContent, IonIcon, IonLabel, IonPage, IonSegment, IonSegmentButton, useIonRouter,
 } from '@ionic/react';
-import { businessOutline, cameraOutline, navigate, walkOutline } from 'ionicons/icons';
+import { businessOutline, cameraOutline, close, navigate, walkOutline } from 'ionicons/icons';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -16,6 +16,9 @@ import {
 
 // Free vector map tiles with 3D buildings (no API key needed)
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+
+// Walking route from the backend (/api/directions). straight = the route server failed, so it's a straight line.
+type Route = { coordinates: [number, number][]; distanceM: number; straight?: boolean };
 
 function pinElement(bg: string, icon: string) {
   const el = document.createElement('div');
@@ -43,6 +46,7 @@ function popup(title: string, lines: string[]) {
 
 export default function MapPage() {
   const location = useLocation();
+  const router = useIonRouter();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
@@ -51,6 +55,8 @@ export default function MapPage() {
   const [me, setMe] = useState(DEFAULT_LOCATION);
   const [mode, setMode] = useState<'2d' | '3d'>('3d');
   const [liveOpen, setLiveOpen] = useState(false);
+  const [target, setTarget] = useState<EvacCenter | null>(null); // center picked with "Show on map"
+  const [route, setRoute] = useState<Route | null>(null);
 
   usePageLoad(() => {
     api<EvacCenter[]>('/evacuation-centers').then(setCenters).catch(() => {});
@@ -130,12 +136,59 @@ export default function MapPage() {
     markers.current.push(new maplibregl.Marker({ element: dot }).setLngLat([me.lng, me.lat]).addTo(m));
   }, [centers, incidents, me]);
 
-  // Focus a center when opened from the Evac list: /tabs/map?focus=<id>
+  // "Show on map" from the Evac list (/tabs/map?focus=<id>): find where I am right now,
+  // then get the walking route to that center.
   useEffect(() => {
     const id = Number(new URLSearchParams(location.search).get('focus'));
-    const c = centers.find((x) => x.id === id);
-    if (c && map.current) map.current.flyTo({ center: [c.lng, c.lat], zoom: 17.5 });
-  }, [location.search, centers]);
+    const c = centers.find((x) => x.id === id) ?? null;
+    setTarget(c);
+    setRoute(null);
+    if (!c) return;
+    let cancelled = false;
+    (async () => {
+      const here = await getLocation();
+      if (cancelled) return;
+      setMe({ lat: here.lat, lng: here.lng });
+      let r: Route;
+      try {
+        r = await api<Route>(`/directions?from=${here.lat},${here.lng}&to=${c.lat},${c.lng}`);
+      } catch {
+        r = { coordinates: [[here.lng, here.lat], [c.lng, c.lat]], distanceM: distanceKm(here, c) * 1000, straight: true };
+      }
+      if (!cancelled) setRoute(r);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [location.key, centers.length]);
+
+  // Draw the route line and zoom so both me and the center fit above the bottom sheet
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    const draw = () => {
+      const data: GeoJSON.Feature = {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: route?.coordinates ?? [] },
+      };
+      const source = m.getSource('route') as maplibregl.GeoJSONSource | undefined;
+      if (source) source.setData(data);
+      else {
+        m.addSource('route', { type: 'geojson', data });
+        const layout = { 'line-join': 'round', 'line-cap': 'round' } as const;
+        m.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout, paint: { 'line-color': '#ffffff', 'line-width': 10 } });
+        m.addLayer({ id: 'route-line', type: 'line', source: 'route', layout, paint: { 'line-color': '#2563eb', 'line-width': 6 } });
+      }
+      if (route) {
+        const bounds = new maplibregl.LngLatBounds();
+        route.coordinates.forEach((c) => bounds.extend(c));
+        m.fitBounds(bounds, { padding: { top: 140, bottom: 320, left: 50, right: 50 }, maxZoom: 17.5, duration: 1200 });
+      }
+    };
+    if (m.isStyleLoaded()) draw();
+    else m.once('idle', draw);
+  }, [route]);
 
   // Opened by tapping an evacuation notification (/tabs/map?live=1): go straight to Live View.
   // location.key changes on every tap, so a second notification opens it again.
@@ -155,6 +208,8 @@ export default function MapPage() {
     .filter((c) => c.isOpen && c.currentOccupancy < c.capacity)
     .map((c) => ({ c, km: distanceKm(me, c) }))
     .sort((a, b) => a.km - b.km)[0];
+  // The picked center (distance along the route once it's loaded), else the nearest one
+  const shown = target ? { c: target, km: route ? route.distanceM / 1000 : distanceKm(me, target) } : nearest;
 
   return (
     <IonPage>
@@ -172,34 +227,41 @@ export default function MapPage() {
             <span><i style={{ background: '#2563eb' }} />You</span>
           </div>
         </div>
-        {nearest && (
+        {shown && (
           <div className="map-sheet">
             <div className="handle" />
             <div className="row">
               <span className="chip-icon solid-icon" style={{ background: '#16a34a' }}><IonIcon icon={businessOutline} /></span>
               <div className="grow">
-                <div className="kicker">Nearest evacuation center</div>
-                <b>{nearest.c.name}</b>
-                <div className="small muted">{formatDistance(nearest.km)} · <IonIcon icon={walkOutline} style={{ verticalAlign: -2 }} /> {walkMinutes(nearest.km)} min · Brgy. {nearest.c.barangay}</div>
+                <div className="kicker">
+                  {!target ? 'Nearest evacuation center' : route ? (route.straight ? 'Straight-line distance' : 'Walking route') : 'Finding your route…'}
+                </div>
+                <b>{shown.c.name}</b>
+                <div className="small muted">{formatDistance(shown.km)} · <IonIcon icon={walkOutline} style={{ verticalAlign: -2 }} /> {walkMinutes(shown.km)} min · Brgy. {shown.c.barangay}</div>
               </div>
+              {target && (
+                <IonButton fill="clear" color="medium" size="small" aria-label="Clear route" onClick={() => router.push('/tabs/map', 'none', 'replace')}>
+                  <IonIcon slot="icon-only" icon={close} />
+                </IonButton>
+              )}
             </div>
             <div className="between small">
               <span className="muted">Capacity</span>
-              <b>{nearest.c.currentOccupancy} / {nearest.c.capacity} evacuees</b>
+              <b>{shown.c.currentOccupancy} / {shown.c.capacity} evacuees</b>
             </div>
-            <div className="bar"><div style={{ width: `${Math.min(100, (nearest.c.currentOccupancy / nearest.c.capacity) * 100)}%`, background: centerStatus(nearest.c).bar }} /></div>
+            <div className="bar"><div style={{ width: `${Math.min(100, (shown.c.currentOccupancy / shown.c.capacity) * 100)}%`, background: centerStatus(shown.c).bar }} /></div>
             <div className="two-buttons">
               <IonButton onClick={() => allowCompass().then(() => setLiveOpen(true))}>
                 <IonIcon slot="start" icon={cameraOutline} />Live View
               </IonButton>
-              <IonButton fill="outline" href={directionsUrl(nearest.c.lat, nearest.c.lng)} target="_blank">
+              <IonButton fill="outline" href={directionsUrl(shown.c.lat, shown.c.lng)} target="_blank">
                 <IonIcon slot="start" icon={navigate} />Directions
               </IonButton>
             </div>
           </div>
         )}
       </IonContent>
-      <LiveView isOpen={liveOpen} centers={centers.filter((c) => c.isOpen)} firstId={nearest?.c.id ?? null} onClose={() => setLiveOpen(false)} />
+      <LiveView isOpen={liveOpen} centers={centers.filter((c) => c.isOpen || c.id === target?.id)} firstId={shown?.c.id ?? null} onClose={() => setLiveOpen(false)} />
     </IonPage>
   );
 }

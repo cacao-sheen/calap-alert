@@ -2,14 +2,15 @@ import {
   IonBadge, IonButton, IonChip, IonContent, IonHeader, IonIcon, IonPage, IonRefresher, IonRefresherContent,
   IonSearchbar, IonSkeletonText, IonTitle, IonToolbar, useIonRouter,
 } from '@ionic/react';
-import { businessOutline, mapOutline, navigate, walkOutline } from 'ionicons/icons';
+import { businessOutline, cameraOutline, mapOutline, walkOutline } from 'ionicons/icons';
 import { useState } from 'react';
 import { api } from '../api';
 import NotifBell from '../components/NotifBell';
 import Empty from '../components/Empty';
+import LiveView from '../components/LiveView';
 import { usePageLoad } from '../hooks';
 import type { EvacCenter } from '../types';
-import { centerStatus, DEFAULT_LOCATION, directionsUrl, distanceKm, formatDistance, getLocation, walkMinutes } from '../utils';
+import { allowCompass, centerStatus, DEFAULT_LOCATION, distanceKm, formatDistance, getLocation, walkMinutes } from '../utils';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -25,6 +26,7 @@ export default function Evac() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [liveId, setLiveId] = useState<number | null>(null); // center shown in Live View
 
   const load = () =>
     api<EvacCenter[]>('/evacuation-centers')
@@ -94,7 +96,7 @@ export default function Evac() {
                 {c.facilities.length > 0 && <div className="tags">{c.facilities.map((f) => <span key={f} className="tag">{f}</span>)}</div>}
                 <div className="two-buttons">
                   <IonButton fill="outline" size="small" onClick={() => router.push(`/tabs/map?focus=${c.id}`)}><IonIcon slot="start" icon={mapOutline} />Show on map</IonButton>
-                  <IonButton size="small" href={directionsUrl(c.lat, c.lng)} target="_blank"><IonIcon slot="start" icon={navigate} />Directions</IonButton>
+                  <IonButton size="small" onClick={() => allowCompass().then(() => setLiveId(c.id))}><IonIcon slot="start" icon={cameraOutline} />Live View</IonButton>
                 </div>
               </div>
             );
@@ -104,6 +106,8 @@ export default function Evac() {
           )}
         </div>
       </IonContent>
+      <LiveView isOpen={liveId != null} centers={centers?.filter((c) => c.isOpen || c.id === liveId) ?? []}
+        firstId={liveId} onClose={() => setLiveId(null)} />
     </IonPage>
   );
 }
