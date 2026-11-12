@@ -19,16 +19,18 @@ function firebase() {
   return messaging;
 }
 
-// Send a notification to every registered phone (or only one barangay's).
+// Send a notification to every registered phone (or only one barangay's, or only one user's).
 // `route` is the app page to open when the resident taps the notification.
-export async function sendPush({ title, body, route, barangayId = null }) {
+export async function sendPush({ title, body, route, barangayId = null, userId = null }) {
   const fcm = firebase();
   if (!fcm) return { sent: 0, reason: 'Push notifications are not set up yet (FIREBASE_SERVICE_ACCOUNT is missing)' };
 
-  const { rows } = await query(
-    'SELECT token FROM push_tokens WHERE $1::int IS NULL OR barangay_id = $1 OR barangay_id IS NULL',
-    [barangayId],
-  );
+  const { rows } = userId
+    ? await query('SELECT token FROM push_tokens WHERE user_id = $1', [userId])
+    : await query(
+      'SELECT token FROM push_tokens WHERE $1::int IS NULL OR barangay_id = $1 OR barangay_id IS NULL',
+      [barangayId],
+    );
   const tokens = rows.map((r) => r.token);
   let sent = 0;
   // FCM accepts at most 500 phones per call

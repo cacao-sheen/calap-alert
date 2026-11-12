@@ -97,3 +97,11 @@ export type ResidentStatus = {
   checkedInAt: string | null;
   centerName: string | null;
 };
+
+export type HouseholdInvite = {
+  id: number;
+  relationship: string;
+  createdAt: string;
+  fromName?: string; // set on invites I received
+  toName?: string; // set on invites I sent
+};

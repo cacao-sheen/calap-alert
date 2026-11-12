@@ -2,7 +2,7 @@
 -- Covers Brgy. Ibaba East and Brgy. Ibaba West, Calapan City.
 -- WARNING: running this file DELETES the existing tables and their data.
 
-DROP TABLE IF EXISTS push_tokens, incident_updates, incidents, safety_checkins, alerts,
+DROP TABLE IF EXISTS push_tokens, household_invites, incident_updates, incidents, safety_checkins, alerts,
   disaster_events, users, residents, households, evacuation_centers, barangays CASCADE;
 
 CREATE TABLE barangays (
@@ -130,6 +130,17 @@ CREATE TABLE alerts (
   created_by  INT  REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   ended_at    TIMESTAMPTZ                      -- set when the admin ends the alert
+);
+
+-- A resident inviting another resident's account into their household.
+-- A row only exists while the invite is waiting; accepting, declining or cancelling deletes it.
+CREATE TABLE household_invites (
+  id               SERIAL PRIMARY KEY,
+  from_resident_id INT  NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+  to_resident_id   INT  NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+  relationship     TEXT NOT NULL,  -- what the invited person is to the inviter, e.g. Mother
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (from_resident_id, to_resident_id)
 );
 
 -- Phones that get push notifications (Firebase Cloud Messaging tokens)

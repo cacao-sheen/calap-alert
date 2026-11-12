@@ -10,6 +10,7 @@ import centerRoutes from './routes/centers.js';
 import incidentRoutes from './routes/incidents.js';
 import checkinRoutes from './routes/checkins.js';
 import residentRoutes from './routes/residents.js';
+import householdRoutes from './routes/household.js';
 import dashboardRoutes from './routes/dashboard.js';
 import pushRoutes from './routes/push.js';
 
@@ -30,6 +31,7 @@ app.use('/api/evacuation-centers', centerRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/checkins', checkinRoutes);
 app.use('/api/residents', residentRoutes);
+app.use('/api/household', householdRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/push', pushRoutes);
 

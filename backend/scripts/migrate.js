@@ -14,6 +14,15 @@ const STEPS = [
   'ALTER TABLE alerts ADD COLUMN IF NOT EXISTS evacuate BOOLEAN NOT NULL DEFAULT false',
   // The admin can end an alert; ended alerts leave the Home screen but stay in the notifications list
   'ALTER TABLE alerts ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ',
+  // Residents invite family members' accounts into their household; the family member must accept
+  `CREATE TABLE IF NOT EXISTS household_invites (
+     id               SERIAL PRIMARY KEY,
+     from_resident_id INT  NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+     to_resident_id   INT  NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+     relationship     TEXT NOT NULL,
+     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+     UNIQUE (from_resident_id, to_resident_id)
+   )`,
 ];
 
 try {

@@ -143,12 +143,10 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            {event && (
-              <div className="actions">
-                <IonButton color="success" onClick={() => go('/tabs/me')}>I'm safe</IonButton>
-                <IonButton color="danger" fill="outline" onClick={() => go('/tabs/me')}><IonIcon slot="start" icon={handLeftOutline} />I need help</IonButton>
-              </div>
-            )}
+            <div className="actions">
+              {event && <IonButton color="success" onClick={() => go('/tabs/me')}>I'm safe</IonButton>}
+              <IonButton color="danger" fill="outline" onClick={() => go('/tabs/me')}><IonIcon slot="start" icon={handLeftOutline} />I need help</IonButton>
+            </div>
           </div>
 
           <div className="card">

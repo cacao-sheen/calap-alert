@@ -3,15 +3,16 @@ import {
   IonSelect, IonSelectOption, IonTitle, IonToggle, IonToolbar, useIonAlert, useIonRouter, useIonToast,
 } from '@ionic/react';
 import {
-  businessOutline, chevronDown, chevronForward, handLeftOutline, informationCircleOutline, locationOutline,
-  logOutOutline, peopleOutline, shieldCheckmark,
+  businessOutline, chevronDown, closeOutline, chevronForward, handLeftOutline, informationCircleOutline, locationOutline,
+  logOutOutline, peopleOutline, personAddOutline, shieldCheckmark,
 } from 'ionicons/icons';
 import { useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import { useAuth } from '../auth';
+import AddMemberModal from '../components/AddMemberModal';
 import Empty from '../components/Empty';
 import { usePageLoad } from '../hooks';
-import type { DisasterEvent, EvacCenter, ResidentStatus, SafetyStatus } from '../types';
+import type { DisasterEvent, EvacCenter, HouseholdInvite, ResidentStatus, SafetyStatus } from '../types';
 import { getLocation, STATUS_COLOR, STATUS_LABEL, timeAgo, timeOf } from '../utils';
 
 const AVATAR_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#0e7490', '#b45309', '#334155', '#ea580c'];
@@ -29,18 +30,23 @@ export default function Safety() {
   const [atCenterOpen, setAtCenterOpen] = useState(false);
   const [shareLocation, setShareLocation] = useState(() => localStorage.getItem('shareLocation') !== 'false');
   const [busy, setBusy] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [invites, setInvites] = useState<{ received: HouseholdInvite[]; sent: HouseholdInvite[] }>({ received: [], sent: [] });
 
   async function load() {
     try {
-      const [s, h, c] = await Promise.all([
+      const [s, h, c, inv] = await Promise.all([
         api<{ event: DisasterEvent | null; me: ResidentStatus | null }>('/checkins/me'),
         api<ResidentStatus[]>('/checkins/household'),
         api<EvacCenter[]>('/evacuation-centers'),
+        // invites are extra; don't let them break the rest of the page
+        api<{ received: HouseholdInvite[]; sent: HouseholdInvite[] }>('/household/invites').catch(() => ({ received: [], sent: [] })),
       ]);
       setEvent(s.event);
       setMine(s.me);
       setHousehold(h);
       setCenters(c.filter((x) => x.isOpen));
+      setInvites(inv);
     } catch (e) {
       toast({ message: (e as Error).message, duration: 3000, color: 'danger' });
     }
@@ -72,6 +78,25 @@ export default function Safety() {
       header: 'Ask for rescue?',
       message: 'Calapan CDRRMO will send a response team to your location.',
       buttons: [{ text: 'Cancel', role: 'cancel' }, { text: 'Yes, I need help', handler: () => { checkIn('need_help'); } }],
+    });
+
+  // accept = join their household; otherwise decline (received) or cancel (sent)
+  async function answerInvite(invite: HouseholdInvite, accept: boolean) {
+    try {
+      if (accept) await api(`/household/invites/${invite.id}/accept`, { method: 'POST' });
+      else await api(`/household/invites/${invite.id}`, { method: 'DELETE' });
+      toast({ message: accept ? `You joined ${invite.fromName}'s household` : 'Invite removed', duration: 2000, color: accept ? 'success' : 'medium' });
+    } catch (e) {
+      toast({ message: (e as Error).message, duration: 3000, color: 'danger' });
+    }
+    load();
+  }
+
+  const acceptInvite = (invite: HouseholdInvite) =>
+    confirm({
+      header: 'Join this household?',
+      message: `You will be listed as ${invite.fromName}'s ${invite.relationship.toLowerCase()}. You will leave your current household.`,
+      buttons: [{ text: 'Cancel', role: 'cancel' }, { text: 'Join', handler: () => { answerInvite(invite, true); } }],
     });
 
   const toggleShare = (v: boolean) => {
@@ -110,7 +135,7 @@ export default function Safety() {
               <IonIcon icon={shieldCheckmark} />
               <div className="grow">
                 <b>No check-in needed right now</b>
-                <p>When your barangay starts a disaster check-in, you can tell them here if you are safe.</p>
+                <p>When your barangay starts a disaster check-in, you can tell them here if you are safe. You can ask for rescue any time.</p>
               </div>
             </div>
           )}
@@ -139,16 +164,34 @@ export default function Safety() {
             </div>
           )}
 
-          <button className="choice" style={{ '--c': '#dc2626' } as CSSProperties} disabled={busy || !event} onClick={askHelp}>
+          <button className="choice" style={{ '--c': '#dc2626' } as CSSProperties} disabled={busy} onClick={askHelp}>
             <span className="chip-icon"><IonIcon icon={handLeftOutline} /></span>
             <span className="grow"><b>I need help</b><span className="small">Ask for rescue. A team will be sent.</span></span>
             <IonIcon icon={chevronForward} className="muted" />
           </button>
 
-          <div className="section-title">My household</div>
+          {invites.received.map((inv) => (
+            <div key={inv.id} className="alert-banner info">
+              <IonIcon icon={peopleOutline} />
+              <div className="grow">
+                <div className="kicker">Household invite</div>
+                <b>{inv.fromName}</b>
+                <p>wants to add you to their household as their {inv.relationship.toLowerCase()}.</p>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <IonButton size="small" onClick={() => acceptInvite(inv)}>Accept</IonButton>
+                  <IonButton size="small" fill="outline" color="medium" onClick={() => answerInvite(inv, false)}>Decline</IonButton>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <div className="between" style={{ marginBottom: -8 }}>
+            <div className="section-title">My household</div>
+            <IonButton size="small" fill="clear" onClick={() => setAddOpen(true)}><IonIcon slot="start" icon={personAddOutline} />Add</IonButton>
+          </div>
           <div className="card" style={{ padding: '4px 16px' }}>
             {household === null && <p className="small muted">Loading…</p>}
-            {household?.length === 0 && <Empty icon={peopleOutline} title="No household members yet" hint="Ask your barangay to add your family to your household." />}
+            {household?.length === 0 && <Empty icon={peopleOutline} title="No household members yet" hint="Tap Add to list the family members who live with you." />}
             {household?.map((m, i) => (
               <div key={m.id} className="row member">
                 <span className="avatar" style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>{m.firstName[0]}{m.lastName[0]}</span>
@@ -162,6 +205,19 @@ export default function Safety() {
                     {m.checkedInAt ? timeOf(m.checkedInAt) : ''}{m.centerName ? ` · ${m.centerName}` : ''}
                   </div>
                 </div>
+              </div>
+            ))}
+            {invites.sent.map((inv) => (
+              <div key={`invite-${inv.id}`} className="row member">
+                <span className="avatar" style={{ background: '#cbd5e1' }}>{inv.toName?.[0]}</span>
+                <div className="grow">
+                  <b className="small">{inv.toName}</b>
+                  <div className="small muted">{inv.relationship} · Invite sent</div>
+                </div>
+                <IonBadge color="warning">Waiting</IonBadge>
+                <IonButton size="small" fill="clear" color="medium" aria-label="Cancel invite" onClick={() => answerInvite(inv, false)}>
+                  <IonIcon slot="icon-only" icon={closeOutline} />
+                </IonButton>
               </div>
             ))}
           </div>
@@ -183,6 +239,10 @@ export default function Safety() {
             </IonItem>
           </div>
         </div>
+        <AddMemberModal isOpen={addOpen} onClose={() => setAddOpen(false)} onDone={(message) => {
+          load();
+          toast({ message, duration: 2500, color: 'success' });
+        }} />
       </IonContent>
     </IonPage>
   );
