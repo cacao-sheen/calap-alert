@@ -178,5 +178,12 @@ ion-toolbar .bell { margin-right: 10px; }
 .live-chevrons { display: flex; flex-direction: column; align-items: center; margin-top: -4px; transition: transform 0.15s linear; }
 .live-chevrons-tilt { display: flex; flex-direction: column; align-items: center; transform: perspective(450px) rotateX(48deg); }
 .live-chevrons svg { width: 150px; height: 120px; margin-top: -78px; overflow: visible; filter: drop-shadow(0 8px 6px rgba(0,0,0,0.45)); animation: live-pulse 1.2s ease-in-out infinite; }
+.live-arrived { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(0, 0, 0, 0.45); }
+.live-arrived-card { width: 100%; max-width: 340px; background: #fff; color: #0f172a; border-radius: var(--r-lg); padding: 28px 22px 20px; text-align: center; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.live-arrived-card h2 { margin: 14px 0 4px; font-size: 24px; font-weight: 700; color: #16a34a; }
+.live-arrived-card p { margin: 0 0 8px; color: #334155; }
+.live-arrived-card p.small { color: #64748b; margin-bottom: 18px; }
+.live-arrived-card ion-button { margin: 0; }
+.live-arrived-check { display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 72px; border-radius: 50%; background: #16a34a; color: #fff; font-size: 44px; box-shadow: 0 0 0 10px #dcfce7; }
 .live-dot { position: absolute; top: 46%; width: 26px; height: 26px; border-radius: 50%; background: #1a73e8; border: 4px solid #fff; box-shadow: 0 3px 10px rgba(0,0,0,0.5); }
 @keyframes live-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }

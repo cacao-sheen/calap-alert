@@ -1,5 +1,5 @@
-import { IonButton, IonIcon, IonModal, IonSelect, IonSelectOption } from '@ionic/react';
-import { close } from 'ionicons/icons';
+import { IonButton, IonIcon, IonModal, IonSelect, IonSelectOption, useIonAlert } from '@ionic/react';
+import { checkmark, close } from 'ionicons/icons';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
@@ -12,7 +12,7 @@ const ARRIVED_KM = 0.03;
 type Point = { lat: number; lng: number };
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
-const ROUTE_MAX_KM = 0.25; // keep the dotted line inside the little map even when the center is far away
+const ROUTE_MAX_KM = 0.25; // straight-line fallback: keep the dotted line inside the little map
 
 // The point `km` away from `from`, in the direction of `to`
 function towards(from: Point, to: Point, km: number): Point {
@@ -23,8 +23,54 @@ function towards(from: Point, to: Point, km: number): Point {
   };
 }
 
-// Round mini-map at the bottom: it turns with the phone and shows a dotted route to the center
-function MiniMap({ me, target, heading }: { me: Point | null; target: Point; heading: number | null }) {
+// ---- Following the walking route (from /api/directions) ----
+const OFF_ROUTE_M = 40; // farther than this from the route = get a new route from here
+const LOOK_AHEAD_M = 20; // the arrow points at the road this far ahead, so it turns at corners
+
+// Metres east (x) / north (y) of `o`; flat-earth is fine for a few km
+function toXY(o: Point, p: Point) {
+  return { x: (p.lng - o.lng) * 111320 * Math.cos((o.lat * Math.PI) / 180), y: (p.lat - o.lat) * 110540 };
+}
+
+// The closest spot on the route to me: segment index, the spot, and how far I am from it (m)
+function locate(route: Point[], me: Point) {
+  let best = { i: 0, at: route[0], offM: Infinity };
+  for (let i = 0; i < route.length - 1; i++) {
+    const a = route[i];
+    const b = toXY(a, route[i + 1]);
+    const m = toXY(a, me);
+    const len2 = b.x * b.x + b.y * b.y;
+    const t = len2 ? Math.max(0, Math.min(1, (m.x * b.x + m.y * b.y) / len2)) : 0;
+    const at = { lat: a.lat + (route[i + 1].lat - a.lat) * t, lng: a.lng + (route[i + 1].lng - a.lng) * t };
+    const offM = distanceKm(me, at) * 1000;
+    if (offM < best.offM) best = { i, at, offM };
+  }
+  return best;
+}
+
+// The part of the route still ahead of me
+function remaining(route: Point[], me: Point): Point[] {
+  const { i, at } = locate(route, me);
+  return [at, ...route.slice(i + 1)];
+}
+
+const lengthKm = (line: Point[]) => line.slice(1).reduce((sum, p, i) => sum + distanceKm(line[i], p), 0);
+
+// The point `m` metres along the line (or its end)
+function pointAlong(line: Point[], m: number): Point {
+  for (let i = 0; i < line.length - 1; i++) {
+    const seg = distanceKm(line[i], line[i + 1]) * 1000;
+    if (m <= seg && seg > 0) {
+      const t = m / seg;
+      return { lat: line[i].lat + (line[i + 1].lat - line[i].lat) * t, lng: line[i].lng + (line[i + 1].lng - line[i].lng) * t };
+    }
+    m -= seg;
+  }
+  return line[line.length - 1];
+}
+
+// Round mini-map at the bottom: it turns with the phone and shows the dotted walking route
+function MiniMap({ me, target, route, heading }: { me: Point | null; target: Point; route: Point[] | null; heading: number | null }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const ready = useRef(false);
@@ -71,25 +117,27 @@ function MiniMap({ me, target, heading }: { me: Point | null; target: Point; hea
   }, [hasMe]);
 
   // The compass reports many times a second; only move the map for a real change (3 degrees or ~2 m)
-  const applied = useRef<{ me: Point; heading: number } | null>(null);
+  const applied = useRef<{ me: Point; heading: number; route: Point[] | null } | null>(null);
   useEffect(() => {
     const m = map.current;
     if (!m || !me) return;
     const bearing = heading ?? 0;
     const prev = applied.current;
-    if (prev && distanceKm(prev.me, me) < 0.002 && Math.abs(((bearing - prev.heading + 540) % 360) - 180) < 3) return;
-    const end = distanceKm(me, target) > ROUTE_MAX_KM ? towards(me, target, ROUTE_MAX_KM) : target;
+    if (prev && prev.route === route && distanceKm(prev.me, me) < 0.002 && Math.abs(((bearing - prev.heading + 540) % 360) - 180) < 3) return;
+    const line = route
+      ? [me, ...remaining(route, me)]
+      : [me, distanceKm(me, target) > ROUTE_MAX_KM ? towards(me, target, ROUTE_MAX_KM) : target];
     const update = () => {
-      applied.current = { me, heading: bearing };
+      applied.current = { me, heading: bearing, route };
       (m.getSource('route') as maplibregl.GeoJSONSource | undefined)?.setData({
         type: 'Feature', properties: {},
-        geometry: { type: 'LineString', coordinates: [[me.lng, me.lat], [end.lng, end.lat]] },
+        geometry: { type: 'LineString', coordinates: line.map((p) => [p.lng, p.lat]) },
       });
       m.jumpTo({ center: [me.lng, me.lat], bearing });
     };
     if (ready.current) update();
     else m.once('live-ready', update);
-  }, [me, target, heading, hasMe]);
+  }, [me, target, route, heading, hasMe]);
 
   // Fallback when the map tiles have no road label: ask the backend (only when you have moved ~15 m)
   const asked = useRef<Point | null>(null);
@@ -183,20 +231,59 @@ function Camera({ centers, firstId, onClose }: { centers: EvacCenter[]; firstId:
   }, []);
 
   const target = centers.find((c) => c.id === targetId) ?? centers[0];
-  const km = me ? distanceKm(me, target) : null;
+
+  // Walking route along real roads. Asked again for a new center, when I'm off the route, or when
+  // the last try failed (at most every 20 s, so a shaky GPS doesn't flood the server).
+  const [route, setRoute] = useState<Point[] | null>(null);
+  const routeFor = useRef<{ id: number; at: number } | null>(null);
+  useEffect(() => {
+    if (!me) return;
+    const asked = routeFor.current;
+    const newTarget = asked?.id !== target.id;
+    const waited = asked != null && Date.now() - asked.at > 20_000;
+    const offRoute = route != null && locate(route, me).offM > OFF_ROUTE_M;
+    if (!newTarget && !(waited && (offRoute || route == null))) return;
+    routeFor.current = { id: target.id, at: Date.now() };
+    if (newTarget) setRoute(null);
+    api<{ coordinates: [number, number][] }>(`/directions?from=${me.lat},${me.lng}&to=${target.lat},${target.lng}`)
+      .then((r) => {
+        if (routeFor.current?.id === target.id) setRoute(r.coordinates.map(([lng, lat]) => ({ lat, lng })));
+      })
+      .catch(() => {}); // keep the straight-line arrow
+  }, [me, target.id]);
+
+  const ahead = me && route ? remaining(route, me) : null;
+  // Aim at the road a little ahead (so the arrow turns at corners); without a route, straight at the center
+  const aim = ahead ? pointAlong(ahead, LOOK_AHEAD_M) : target;
+  const km = me ? (ahead ? lengthKm(ahead) : distanceKm(me, target)) : null;
   // -180..180: negative = turn left, positive = turn right
-  const turn = me && heading != null ? ((bearingDeg(me, target) - heading + 540) % 360) - 180 : null;
+  const turn = me && heading != null ? ((bearingDeg(me, aim) - heading + 540) % 360) - 180 : null;
   // No compass: still show the arrow, pointing on a north-up basis, so it never disappears
-  const arrowAngle = turn ?? (me ? bearingDeg(me, target) : 0);
+  const arrowAngle = turn ?? (me ? bearingDeg(me, aim) : 0);
   const inView = turn != null && Math.abs(turn) < FIELD_OF_VIEW / 2;
-  const arrived = km != null && km < ARRIVED_KM;
+  const arrived = me != null && (distanceKm(me, target) < ARRIVED_KM || (km != null && km < ARRIVED_KM));
+
+  // Once you reach a center it stays "reached", even if the GPS jumps a few metres away afterwards
+  const [reachedId, setReachedId] = useState<number | null>(null);
+  useEffect(() => {
+    if (arrived && reachedId !== target.id) setReachedId(target.id);
+  }, [arrived, target.id]);
+  const reached = reachedId === target.id;
+
+  const [ask] = useIonAlert();
+  const confirmEnd = () =>
+    ask({
+      header: 'End Live View?',
+      message: `You reached ${target.name}.`,
+      buttons: [{ text: 'Not yet', role: 'cancel' }, { text: 'End', handler: onClose }],
+    });
 
   let hint = '';
   if (camError) hint = camError;
   else if (!me) hint = 'Finding your location…';
   else if (heading == null) hint = 'No compass signal. Arrow shows direction with north up.';
   else if (arrived) hint = "You're here!";
-  else if (inView) hint = 'Keep going straight';
+  else if (inView) hint = route ? 'Follow the road' : 'Keep going straight';
   else hint = turn! > 0 ? 'Turn right' : 'Turn left';
 
   return (
@@ -209,11 +296,11 @@ function Camera({ centers, firstId, onClose }: { centers: EvacCenter[]; firstId:
         <IonButton fill="clear" color="light" onClick={onClose} aria-label="Close"><IonIcon slot="icon-only" icon={close} /></IonButton>
       </div>
 
-      {(
+      {!reached && (
         <div className="live-guide" style={{ opacity: me ? 1 : 0.5 }}>
           <div className="live-label">
             {hint}
-            {km != null && <small>{formatDistance(km)} · {walkMinutes(km)} min walk to {target.name}</small>}
+            {km != null && <small>{formatDistance(km)} · {walkMinutes(km)} min walk to {target.name}{route ? '' : ' (straight line)'}</small>}
           </div>
           {!arrived && <div className="live-chevrons" style={{ transform: `rotate(${inView ? 0 : arrowAngle}deg)` }}>
             <div className="live-chevrons-tilt">
@@ -231,11 +318,23 @@ function Camera({ centers, firstId, onClose }: { centers: EvacCenter[]; firstId:
         </div>
       )}
 
-      {!arrived && turn != null && !inView && (
+      {reached && (
+        <div className="live-arrived">
+          <div className="live-arrived-card">
+            <span className="live-arrived-check"><IonIcon icon={checkmark} /></span>
+            <h2>You've arrived!</h2>
+            <p>You reached <b>{target.name}</b>.</p>
+            <p className="small">Go inside and tell the staff your name. In the app, tap "I'm at an evacuation center" so your barangay knows you're safe.</p>
+            <IonButton expand="block" onClick={confirmEnd}>End Live View</IonButton>
+          </div>
+        </div>
+      )}
+
+      {!reached && turn != null && !inView && (
         <div className="live-dot" style={{ [turn > 0 ? 'right' : 'left']: 14 }} />
       )}
 
-      <MiniMap me={me} target={target} heading={heading} />
+      <MiniMap me={me} target={target} route={route} heading={heading} />
     </div>
   );
 }
