@@ -6,8 +6,8 @@ import { checkmarkCircle } from 'ionicons/icons';
 import { useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { AccountMatch } from '../types';
+import { RELATIONSHIPS } from '../utils';
 
-const RELATIONSHIPS = ['Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Brother', 'Sister', 'Grandfather', 'Grandmother', 'Grandchild', 'Relative', 'Other'];
 const EMPTY = { lookup: '', firstName: '', lastName: '', relationship: '', birthDate: '', sex: '', isPwd: false };
 
 type Mode = 'account' | 'manual';
@@ -55,7 +55,7 @@ export default function AddMemberModal({ isOpen, onClose, onDone }: Props) {
       setForm(EMPTY);
       setMatches(null);
       setPicked(null);
-      onDone(mode === 'account' ? 'Invite sent. They will join once they accept.' : 'Family member added');
+      onDone(mode === 'account' ? 'Invite sent. They will be added once they accept.' : 'Added to your Family members');
       onClose();
     } catch (err) {
       setError((err as Error).message);
@@ -75,7 +75,7 @@ export default function AddMemberModal({ isOpen, onClose, onDone }: Props) {
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader className="app-header">
         <IonToolbar>
-          <IonTitle>Add family member</IonTitle>
+          <IonTitle>Add family or friend</IonTitle>
           <IonButtons slot="end"><IonButton onClick={onClose}>Cancel</IonButton></IonButtons>
         </IonToolbar>
       </IonHeader>
@@ -89,7 +89,7 @@ export default function AddMemberModal({ isOpen, onClose, onDone }: Props) {
           {mode === 'account' ? (
             <>
               <p className="small muted" style={{ margin: 0 }}>
-                Search for their account, then tap their name. They will get an invite and join your household once they accept.
+                Search for their account, then tap their name. They will get an invite and be added to your Family members once they accept.
               </p>
               <IonInput label="Their email or full name" labelPlacement="floating" fill="outline" debounce={400}
                 value={form.lookup} onIonInput={(e) => search(e.detail.value ?? '')} />
@@ -115,7 +115,7 @@ export default function AddMemberModal({ isOpen, onClose, onDone }: Props) {
           ) : (
             <>
               <p className="small muted" style={{ margin: 0 }}>
-                For family without a phone, like children or seniors. Your barangay can mark their status during a disaster.
+                For people without a phone, like children or seniors. Your barangay can mark their status during a disaster.
               </p>
               <IonInput label="First name" labelPlacement="floating" fill="outline" value={form.firstName} onIonInput={set('firstName')} required />
               <IonInput label="Last name" labelPlacement="floating" fill="outline" value={form.lastName} onIonInput={set('lastName')} required />
@@ -133,7 +133,7 @@ export default function AddMemberModal({ isOpen, onClose, onDone }: Props) {
 
           {error && <div className="error-card">{error}</div>}
           <IonButton type="submit" expand="block" className="auth-button" disabled={busy}>
-            {busy ? <IonSpinner name="crescent" /> : mode === 'account' ? 'Send invite' : 'Add to household'}
+            {busy ? <IonSpinner name="crescent" /> : mode === 'account' ? 'Send invite' : 'Add'}
           </IonButton>
         </form>
       </IonContent>

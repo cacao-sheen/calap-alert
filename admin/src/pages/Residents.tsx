@@ -101,13 +101,13 @@ export default function Residents() {
               </IonSegmentButton>
             ))}
           </IonSegment>
-          <IonSearchbar className="search" placeholder="Search a resident by name or ID" debounce={300} value={search}
+          <IonSearchbar className="search" placeholder="Search by name, ID or email" debounce={300} value={search}
             onIonInput={(e) => { setSearch(e.detail.value ?? ''); setPage(1); }} />
         </div>
         <div className="table-scroll">
           <table>
             <thead>
-              <tr><th>Resident</th><th>Purok / Address</th><th>Age</th><th>Contact</th><th>Status</th><th>Last check-in</th><th>Location</th><th /></tr>
+              <tr><th>Resident</th><th>Purok / Address</th><th>Age</th><th>Contact</th><th>Email</th><th>Status</th><th>Last check-in</th><th>Location</th><th /></tr>
             </thead>
             <tbody>
               {data?.items.map((r, i) => (
@@ -126,14 +126,15 @@ export default function Residents() {
                   <td>{[r.purok, r.address].filter(Boolean).join(' · ') || '—'}</td>
                   <td>{r.age ?? '—'}</td>
                   <td>{r.contactNumber ?? '—'}</td>
+                  <td>{r.email ?? <span className="muted">No account</span>}</td>
                   <td><IonBadge color={SAFETY[r.status].color}>{SAFETY[r.status].label}</IonBadge></td>
                   <td className="muted">{r.checkedInAt ? timeOf(r.checkedInAt) : '—'}</td>
                   <td>{r.centerName ?? (r.status === 'safe' ? 'Home' : r.status === 'unaccounted' ? 'Unknown' : '—')}</td>
                   <td><IonButton size="small" fill="outline" onClick={() => setEditing(r)}>Update status</IonButton></td>
                 </tr>
               ))}
-              {!data && <tr><td colSpan={8}><div className="loading"><IonSpinner name="crescent" /></div></td></tr>}
-              {data && !data.items.length && <tr><td colSpan={8}><Empty icon={peopleOutline} title="No residents found" hint="Try another status tab or a different name." /></td></tr>}
+              {!data && <tr><td colSpan={9}><div className="loading"><IonSpinner name="crescent" /></div></td></tr>}
+              {data && !data.items.length && <tr><td colSpan={9}><Empty icon={peopleOutline} title="No residents found" hint="Try another status tab or a different name." /></td></tr>}
             </tbody>
           </table>
         </div>

@@ -132,6 +132,7 @@ export type Resident = {
   status: SafetyStatus;
   checkedInAt: string | null;
   centerName: string | null;
+  email: string | null; // login email; null = added without an account
 };
 
 export type ResidentPage = {

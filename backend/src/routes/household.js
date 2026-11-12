@@ -4,33 +4,20 @@ import { requireAuth } from '../auth.js';
 import { httpError, oneOf, required } from '../http.js';
 import { sendPush } from '../push.js';
 
-// A resident's household: add family members without an account, or invite family members' accounts.
+// A resident's own "Family members" list (family and friends): add people without an account,
+// or invite other residents' accounts. Invites must be accepted; then both appear in each other's list.
+// (Routes keep the /household path from before.)
 const router = Router();
 router.use(requireAuth);
 
 function myResidentId(req) {
-  if (!req.user.residentId) throw httpError(403, 'Only resident accounts have a household');
+  if (!req.user.residentId) throw httpError(403, 'Only resident accounts have family members');
   return req.user.residentId;
 }
 
-// Returns the resident's household id. A new sign-up has none yet,
-// so this creates one named after them, with them as Head.
-async function ensureHousehold(client, residentId) {
-  const { rows: [r] } = await client.query(
-    'SELECT last_name, barangay_id, household_id, purok, address FROM residents WHERE id = $1 FOR UPDATE',
-    [residentId],
-  );
-  if (r.household_id) return r;
-  const { rows: [h] } = await client.query(
-    'INSERT INTO households (barangay_id, family_name, purok, address) VALUES ($1, $2, $3, $4) RETURNING id',
-    [r.barangay_id, r.last_name, r.purok, r.address],
-  );
-  await client.query(
-    `UPDATE residents SET household_id = $2, relationship = COALESCE(relationship, 'Head') WHERE id = $1`,
-    [residentId, h.id],
-  );
-  return { ...r, household_id: h.id };
-}
+// Adds or updates "member is <relationship> to owner" in owner's list
+const LINK_SQL = `INSERT INTO family_links (owner_resident_id, member_resident_id, relationship) VALUES ($1, $2, $3)
+  ON CONFLICT (owner_resident_id, member_resident_id) DO UPDATE SET relationship = EXCLUDED.relationship`;
 
 async function inTransaction(work) {
   const client = await pool.connect();
@@ -47,7 +34,7 @@ async function inTransaction(work) {
   }
 }
 
-// Add a family member who has no account (e.g. a child or a senior without a phone)
+// Add someone who has no account (e.g. a child or a senior without a phone)
 router.post('/members', async (req, res) => {
   const residentId = myResidentId(req);
   const b = req.body ?? {};
@@ -55,14 +42,15 @@ router.post('/members', async (req, res) => {
   if (b.sex) oneOf(b.sex, ['male', 'female'], 'sex');
 
   const id = await inTransaction(async (client) => {
-    const me = await ensureHousehold(client, residentId);
+    // They are counted as residents too, so they get the adder's barangay and address
+    const { rows: [me] } = await client.query('SELECT barangay_id, purok, address FROM residents WHERE id = $1', [residentId]);
     const { rows: [added] } = await client.query(
-      `INSERT INTO residents (first_name, last_name, birth_date, sex, barangay_id, household_id, relationship, purok, address, is_pwd)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [b.firstName.trim(), b.lastName.trim(), b.birthDate || null, b.sex || null, me.barangay_id, me.household_id,
-        b.relationship, me.purok, me.address, Boolean(b.isPwd)],
+      `INSERT INTO residents (first_name, last_name, birth_date, sex, barangay_id, purok, address, is_pwd)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [b.firstName.trim(), b.lastName.trim(), b.birthDate || null, b.sex || null, me.barangay_id, me.purok, me.address, Boolean(b.isPwd)],
     );
     await client.query(`UPDATE residents SET resident_code = 'RES-' || lpad(id::text, 5, '0') WHERE id = $1`, [added.id]);
+    await client.query(LINK_SQL, [residentId, added.id, b.relationship]);
     return added.id;
   });
   res.status(201).json({ id });
@@ -106,7 +94,7 @@ router.get('/search', async (req, res) => {
   res.json(rows);
 });
 
-// Invite a family member's account (picked from the search)
+// Invite someone's account (picked from the search)
 router.post('/invites', async (req, res) => {
   const residentId = myResidentId(req);
   const { residentId: toId, relationship } = req.body ?? {};
@@ -120,10 +108,14 @@ router.post('/invites', async (req, res) => {
   if (!to) throw httpError(404, 'That account was not found. Ask them to sign up first.');
   if (to.id === residentId) throw httpError(400, 'That is your own account');
   const { rows: [me] } = await query(
-    'SELECT first_name, last_name, household_id FROM residents WHERE id = $1',
-    [residentId],
+    `SELECT first_name, last_name, household_id,
+            EXISTS (SELECT 1 FROM family_links WHERE owner_resident_id = $1 AND member_resident_id = $2) AS linked
+     FROM residents WHERE id = $1`,
+    [residentId, to.id],
   );
-  if (me.household_id && me.household_id === to.household_id) throw httpError(409, 'They are already in your household');
+  if (me.linked || (me.household_id && me.household_id === to.household_id)) {
+    throw httpError(409, 'They are already in your Family members');
+  }
 
   try {
     await query(
@@ -137,26 +129,31 @@ router.post('/invites', async (req, res) => {
 
   sendPush({
     userId: to.user_id,
-    title: 'Household invite',
-    body: `${me.first_name} ${me.last_name} wants to add you to their household. Open the app to accept.`,
+    title: 'Family members invite',
+    body: `${me.first_name} ${me.last_name} wants to add you to their Family members. Open the app to accept.`,
     route: '/tabs/me',
   }).catch((err) => console.warn('Push failed:', err.message));
   res.status(201).json({ ok: true });
 });
 
-// The invited person accepts: they move into the inviter's household
+// The invited person accepts and says what the inviter is to them (e.g. Friend).
+// Both are then in each other's Family members list.
 router.post('/invites/:id/accept', async (req, res) => {
   const residentId = myResidentId(req);
+  const { relationship } = req.body ?? {};
+  required({ relationship });
   await inTransaction(async (client) => {
     const { rows: [invite] } = await client.query(
       'DELETE FROM household_invites WHERE id = $1 AND to_resident_id = $2 RETURNING from_resident_id, relationship',
       [req.params.id, residentId],
     );
     if (!invite) throw httpError(404, 'This invite was cancelled or already answered');
-    const inviter = await ensureHousehold(client, invite.from_resident_id);
+    await client.query(LINK_SQL, [invite.from_resident_id, residentId, invite.relationship]);
+    await client.query(LINK_SQL, [residentId, invite.from_resident_id, relationship]);
+    // If I had also invited them, that invite is no longer needed
     await client.query(
-      'UPDATE residents SET household_id = $2, relationship = $3 WHERE id = $1',
-      [residentId, inviter.household_id, invite.relationship],
+      'DELETE FROM household_invites WHERE from_resident_id = $1 AND to_resident_id = $2',
+      [residentId, invite.from_resident_id],
     );
   });
   res.json({ ok: true });

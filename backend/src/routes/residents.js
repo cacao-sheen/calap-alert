@@ -4,6 +4,11 @@ import { requireAdmin, requireAuth } from '../auth.js';
 import { httpError, oneOf, required } from '../http.js';
 import { CHECKIN_STATUSES, getActiveEvent, RESIDENT_STATUS_CTE } from '../queries.js';
 
+// RESIDENT_STATUS_CTE plus each resident's login email (null = added without an account).
+// Admin only: the mobile app's Family members list uses RESIDENT_STATUS_CTE, which has no emails.
+const ADMIN_CTE = `${RESIDENT_STATUS_CTE},
+rsx AS (SELECT rs.*, u.email FROM rs LEFT JOIN users u ON u.resident_id = rs.id)`;
+
 const router = Router();
 router.use(requireAuth, requireAdmin);
 
@@ -17,12 +22,12 @@ router.get('/', async (req, res) => {
     where.push(sql.replaceAll('?', `$${params.length}`));
   };
   if (req.query.barangayId) add('"barangayId" = ?', Number(req.query.barangayId));
-  if (req.query.search) add(`("firstName" || ' ' || "lastName" ILIKE ? OR "residentCode" ILIKE ?)`, `%${req.query.search}%`);
+  if (req.query.search) add(`("firstName" || ' ' || "lastName" ILIKE ? OR "residentCode" ILIKE ? OR email ILIKE ?)`, `%${req.query.search}%`);
   const baseWhere = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
   // Counts per status (for the tabs), before filtering by status
   const { rows: countRows } = await query(
-    `${RESIDENT_STATUS_CTE} SELECT status, count(*)::int AS n FROM rs ${baseWhere} GROUP BY status`,
+    `${ADMIN_CTE} SELECT status, count(*)::int AS n FROM rsx ${baseWhere} GROUP BY status`,
     params,
   );
   const counts = { all: 0, safe: 0, evacuated: 0, need_help: 0, unaccounted: 0 };
@@ -35,8 +40,8 @@ router.get('/', async (req, res) => {
   const pageSize = Math.min(Number(req.query.pageSize) || 20, 100);
   const page = Math.max(Number(req.query.page) || 1, 1);
   const { rows } = await query(
-    `${RESIDENT_STATUS_CTE}
-     SELECT *, count(*) OVER()::int AS "totalRows" FROM rs
+    `${ADMIN_CTE}
+     SELECT *, count(*) OVER()::int AS "totalRows" FROM rsx
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
      ORDER BY purok NULLS LAST, "lastName", "firstName"
      LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
@@ -57,7 +62,7 @@ router.post('/', async (req, res) => {
       b.purok || null, b.address || null, b.relationship || null, Boolean(b.isPwd)],
   );
   await query(`UPDATE residents SET resident_code = 'RES-' || lpad(id::text, 5, '0') WHERE id = $1`, [r.id]);
-  const { rows } = await query(`${RESIDENT_STATUS_CTE} SELECT * FROM rs WHERE id = $1`, [r.id]);
+  const { rows } = await query(`${ADMIN_CTE} SELECT * FROM rsx WHERE id = $1`, [r.id]);
   res.status(201).json(rows[0]);
 });
 
@@ -74,7 +79,7 @@ router.post('/:id/checkin', async (req, res) => {
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [req.params.id, event.id, status, evacuationCenterId, note, req.user.id],
   );
-  const { rows } = await query(`${RESIDENT_STATUS_CTE} SELECT * FROM rs WHERE id = $1`, [req.params.id]);
+  const { rows } = await query(`${ADMIN_CTE} SELECT * FROM rsx WHERE id = $1`, [req.params.id]);
   if (!rows[0]) throw httpError(404, 'Resident not found');
   res.json(rows[0]);
 });

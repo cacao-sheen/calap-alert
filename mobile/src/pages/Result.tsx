@@ -7,7 +7,7 @@ const CONTENT = {
     color: '#16a34a',
     icon: checkmark,
     title: "You're marked safe!",
-    message: 'Your barangay officials and your household can now see that you are safe.',
+    message: 'Your barangay officials and your family members can now see that you are safe.',
     rows: [
       [locationOutline, 'Your location was shared with responders (if enabled)'],
       [timeOutline, 'Your status stays active until the typhoon alert ends'],

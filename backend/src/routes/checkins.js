@@ -77,17 +77,20 @@ router.get('/me', async (req, res) => {
   res.json({ event: await getActiveEvent(), me: rows[0] ?? null });
 });
 
-// Resident: everyone in my household and their status
+// Resident: my Family members (my own list + people the barangay put in my household) and their status
 router.get('/household', async (req, res) => {
   const residentId = myResidentId(req);
   const { rows } = await query(
     `${RESIDENT_STATUS_CTE}
-     SELECT * FROM rs
-     WHERE id = $1 OR "householdId" = (SELECT household_id FROM residents WHERE id = $1)
-     ORDER BY (id = $1) DESC, age DESC NULLS LAST`,
+     SELECT rs.*, l.relationship AS "linkRelationship" FROM rs
+     LEFT JOIN family_links l ON l.owner_resident_id = $1 AND l.member_resident_id = rs.id
+     WHERE rs.id = $1 OR l.member_resident_id IS NOT NULL
+        OR rs."householdId" = (SELECT household_id FROM residents WHERE id = $1)
+     ORDER BY (rs.id = $1) DESC, rs.age DESC NULLS LAST`,
     [residentId],
   );
-  res.json(rows);
+  // What they are to me (from my list) beats what they are to the household head
+  res.json(rows.map(({ linkRelationship, ...r }) => ({ ...r, relationship: linkRelationship ?? r.relationship })));
 });
 
 export default router;

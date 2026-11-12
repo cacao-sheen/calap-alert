@@ -162,3 +162,9 @@ export async function allowCompass(): Promise<void> {
     try { await D.requestPermission(); } catch { /* the Live View shows a message if there is no compass */ }
   }
 }
+
+// Relationship choices for the Family members list
+export const RELATIONSHIPS = [
+  'Friend', 'Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Brother', 'Sister',
+  'Grandfather', 'Grandmother', 'Grandchild', 'Relative', 'Other',
+];

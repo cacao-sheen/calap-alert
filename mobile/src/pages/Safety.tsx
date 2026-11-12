@@ -13,7 +13,7 @@ import AddMemberModal from '../components/AddMemberModal';
 import Empty from '../components/Empty';
 import { usePageLoad } from '../hooks';
 import type { DisasterEvent, EvacCenter, HouseholdInvite, ResidentStatus, SafetyStatus } from '../types';
-import { getLocation, STATUS_COLOR, STATUS_LABEL, timeAgo, timeOf } from '../utils';
+import { getLocation, RELATIONSHIPS, STATUS_COLOR, STATUS_LABEL, timeAgo, timeOf } from '../utils';
 
 const AVATAR_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#0e7490', '#b45309', '#334155', '#ea580c'];
 
@@ -80,12 +80,16 @@ export default function Safety() {
       buttons: [{ text: 'Cancel', role: 'cancel' }, { text: 'Yes, I need help', handler: () => { checkIn('need_help'); } }],
     });
 
-  // accept = join their household; otherwise decline (received) or cancel (sent)
-  async function answerInvite(invite: HouseholdInvite, accept: boolean) {
+  // acceptAs = what the inviter is to me (accept); null = decline (received) or cancel (sent)
+  async function answerInvite(invite: HouseholdInvite, acceptAs: string | null) {
     try {
-      if (accept) await api(`/household/invites/${invite.id}/accept`, { method: 'POST' });
+      if (acceptAs) await api(`/household/invites/${invite.id}/accept`, { method: 'POST', body: { relationship: acceptAs } });
       else await api(`/household/invites/${invite.id}`, { method: 'DELETE' });
-      toast({ message: accept ? `You joined ${invite.fromName}'s household` : 'Invite removed', duration: 2000, color: accept ? 'success' : 'medium' });
+      toast({
+        message: acceptAs ? `${invite.fromName} is now in your Family members` : 'Invite removed',
+        duration: 2000,
+        color: acceptAs ? 'success' : 'medium',
+      });
     } catch (e) {
       toast({ message: (e as Error).message, duration: 3000, color: 'danger' });
     }
@@ -94,9 +98,18 @@ export default function Safety() {
 
   const acceptInvite = (invite: HouseholdInvite) =>
     confirm({
-      header: 'Join this household?',
-      message: `You will be listed as ${invite.fromName}'s ${invite.relationship.toLowerCase()}. You will leave your current household.`,
-      buttons: [{ text: 'Cancel', role: 'cancel' }, { text: 'Join', handler: () => { answerInvite(invite, true); } }],
+      header: `What is ${invite.fromName} to you?`,
+      inputs: RELATIONSHIPS.map((r) => ({ type: 'radio' as const, label: r, value: r })),
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Accept',
+          handler: (value?: string) => {
+            if (!value) return false; // keep the box open until they pick one
+            answerInvite(invite, value);
+          },
+        },
+      ],
     });
 
   const toggleShare = (v: boolean) => {
@@ -174,24 +187,24 @@ export default function Safety() {
             <div key={inv.id} className="alert-banner info">
               <IonIcon icon={peopleOutline} />
               <div className="grow">
-                <div className="kicker">Household invite</div>
+                <div className="kicker">Family members invite</div>
                 <b>{inv.fromName}</b>
-                <p>wants to add you to their household as their {inv.relationship.toLowerCase()}.</p>
+                <p>wants to add you to their Family members as their {inv.relationship.toLowerCase()}.</p>
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <IonButton size="small" onClick={() => acceptInvite(inv)}>Accept</IonButton>
-                  <IonButton size="small" fill="outline" color="medium" onClick={() => answerInvite(inv, false)}>Decline</IonButton>
+                  <IonButton size="small" fill="outline" color="medium" onClick={() => answerInvite(inv, null)}>Decline</IonButton>
                 </div>
               </div>
             </div>
           ))}
 
           <div className="between" style={{ marginBottom: -8 }}>
-            <div className="section-title">My household</div>
+            <div className="section-title">Family members</div>
             <IonButton size="small" fill="clear" onClick={() => setAddOpen(true)}><IonIcon slot="start" icon={personAddOutline} />Add</IonButton>
           </div>
           <div className="card" style={{ padding: '4px 16px' }}>
             {household === null && <p className="small muted">Loading…</p>}
-            {household?.length === 0 && <Empty icon={peopleOutline} title="No household members yet" hint="Tap Add to list the family members who live with you." />}
+            {household?.length === 0 && <Empty icon={peopleOutline} title="No family members yet" hint="Tap Add to add your family and friends." />}
             {household?.map((m, i) => (
               <div key={m.id} className="row member">
                 <span className="avatar" style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>{m.firstName[0]}{m.lastName[0]}</span>
@@ -215,7 +228,7 @@ export default function Safety() {
                   <div className="small muted">{inv.relationship} · Invite sent</div>
                 </div>
                 <IonBadge color="warning">Waiting</IonBadge>
-                <IonButton size="small" fill="clear" color="medium" aria-label="Cancel invite" onClick={() => answerInvite(inv, false)}>
+                <IonButton size="small" fill="clear" color="medium" aria-label="Cancel invite" onClick={() => answerInvite(inv, null)}>
                   <IonIcon slot="icon-only" icon={closeOutline} />
                 </IonButton>
               </div>

@@ -23,6 +23,15 @@ const STEPS = [
      created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
      UNIQUE (from_resident_id, to_resident_id)
    )`,
+  // Each resident's own Family members list (family and friends), so accepting an invite
+  // no longer moves anyone out of their household
+  `CREATE TABLE IF NOT EXISTS family_links (
+     owner_resident_id  INT  NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+     member_resident_id INT  NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+     relationship       TEXT NOT NULL,
+     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+     PRIMARY KEY (owner_resident_id, member_resident_id)
+   )`,
 ];
 
 try {
