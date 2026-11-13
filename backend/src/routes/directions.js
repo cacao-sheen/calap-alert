@@ -3,8 +3,9 @@ import { httpError } from '../http.js';
 
 const router = Router();
 
-// Walking route along real streets, from the free OpenStreetMap routing server (FOSSGIS OSRM, no API key).
-// Cached so many people walking to the same center from about the same spot ask only once.
+// Route along real roads, from the free OpenStreetMap routing server (FOSSGIS OSRM, no API key).
+// Uses the car profile because it keeps to highways and main roads (the walking profile cuts through
+// small back roads, and was even longer). Cached so people going from about the same spot ask only once.
 const cache = new Map();
 
 function point(value) {
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
   const key = [from.lat.toFixed(4), from.lng.toFixed(4), to.lat.toFixed(5), to.lng.toFixed(5)].join();
   if (cache.has(key)) return res.json(cache.get(key));
 
-  const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}`
+  const url = `https://routing.openstreetmap.de/routed-car/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}`
     + '?overview=full&geometries=geojson';
   let data;
   try {
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
     throw httpError(502, 'Could not get directions right now');
   }
   const route = data?.routes?.[0];
-  if (data?.code !== 'Ok' || !route) throw httpError(502, 'No walking route found');
+  if (data?.code !== 'Ok' || !route) throw httpError(502, 'No route found');
 
   const result = {
     // The route starts and ends on the nearest street, so connect it to the exact spots

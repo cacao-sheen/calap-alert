@@ -1,7 +1,7 @@
 import {
   IonButton, IonContent, IonIcon, IonLabel, IonPage, IonSegment, IonSegmentButton, useIonRouter,
 } from '@ionic/react';
-import { businessOutline, cameraOutline, close, navigate, walkOutline } from 'ionicons/icons';
+import { businessOutline, cameraOutline, carOutline, close, navigate, walkOutline } from 'ionicons/icons';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -18,7 +18,10 @@ import {
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 // Walking route from the backend (/api/directions). straight = the route server failed, so it's a straight line.
-type Route = { coordinates: [number, number][]; distanceM: number; straight?: boolean };
+type Route = { coordinates: [number, number][]; distanceM: number; durationS?: number; straight?: boolean };
+
+// Short trips: walking time. Longer trips: time by vehicle along the main roads.
+const WALK_MAX_KM = 3;
 
 function pinElement(bg: string, icon: string) {
   const el = document.createElement('div');
@@ -112,14 +115,13 @@ export default function MapPage() {
     if (!m) return;
     markers.current.forEach((mk) => mk.remove());
     markers.current = [];
+    // Tapping a center opens its card at the bottom with the walking route (same as "Show on map" in Evac)
     for (const c of centers) {
       const st = centerStatus(c);
-      markers.current.push(
-        new maplibregl.Marker({ element: pinElement(st.bar, businessOutline) })
-          .setLngLat([c.lng, c.lat])
-          .setPopup(popup(c.name, [`${c.currentOccupancy} / ${c.capacity} evacuees · ${st.label}`, `Brgy. ${c.barangay}`]))
-          .addTo(m),
-      );
+      const element = pinElement(st.bar, businessOutline);
+      element.style.cursor = 'pointer';
+      element.addEventListener('click', () => router.push(`/tabs/map?focus=${c.id}`, 'none', 'replace'));
+      markers.current.push(new maplibregl.Marker({ element }).setLngLat([c.lng, c.lat]).addTo(m));
     }
     for (const i of incidents) {
       if (i.lat == null || i.lng == null) continue;
@@ -208,8 +210,8 @@ export default function MapPage() {
     .filter((c) => c.isOpen && c.currentOccupancy < c.capacity)
     .map((c) => ({ c, km: distanceKm(me, c) }))
     .sort((a, b) => a.km - b.km)[0];
-  // The picked center (distance along the route once it's loaded), else the nearest one
-  const shown = target ? { c: target, km: route ? route.distanceM / 1000 : distanceKm(me, target) } : nearest;
+  // The card only shows after a center is tapped (or picked in Evac); distance is along the route once loaded
+  const shown = target ? { c: target, km: route ? route.distanceM / 1000 : distanceKm(me, target) } : null;
 
   return (
     <IonPage>
@@ -234,10 +236,15 @@ export default function MapPage() {
               <span className="chip-icon solid-icon" style={{ background: '#16a34a' }}><IonIcon icon={businessOutline} /></span>
               <div className="grow">
                 <div className="kicker">
-                  {!target ? 'Nearest evacuation center' : route ? (route.straight ? 'Straight-line distance' : 'Walking route') : 'Finding your route…'}
+                  {route ? (route.straight ? 'Straight-line distance' : 'Route via main roads') : 'Finding your route…'}
                 </div>
                 <b>{shown.c.name}</b>
-                <div className="small muted">{formatDistance(shown.km)} · <IonIcon icon={walkOutline} style={{ verticalAlign: -2 }} /> {walkMinutes(shown.km)} min · Brgy. {shown.c.barangay}</div>
+                <div className="small muted">
+                  {formatDistance(shown.km)} · {shown.km > WALK_MAX_KM && route?.durationS
+                    ? <><IonIcon icon={carOutline} style={{ verticalAlign: -2 }} /> {Math.max(1, Math.round(route.durationS / 60))} min by vehicle</>
+                    : <><IonIcon icon={walkOutline} style={{ verticalAlign: -2 }} /> {walkMinutes(shown.km)} min walk</>}
+                  {' '}· Brgy. {shown.c.barangay}
+                </div>
               </div>
               {target && (
                 <IonButton fill="clear" color="medium" size="small" aria-label="Clear route" onClick={() => router.push('/tabs/map', 'none', 'replace')}>
@@ -261,7 +268,7 @@ export default function MapPage() {
           </div>
         )}
       </IonContent>
-      <LiveView isOpen={liveOpen} centers={centers.filter((c) => c.isOpen || c.id === target?.id)} firstId={shown?.c.id ?? null} onClose={() => setLiveOpen(false)} />
+      <LiveView isOpen={liveOpen} centers={centers.filter((c) => c.isOpen || c.id === target?.id)} firstId={target?.id ?? nearest?.c.id ?? null} onClose={() => setLiveOpen(false)} />
     </IonPage>
   );
 }
