@@ -61,10 +61,18 @@ export default function MapPage() {
   const [target, setTarget] = useState<EvacCenter | null>(null); // center picked with "Show on map"
   const [route, setRoute] = useState<Route | null>(null);
 
+  // Opening the Map centers it on me when GPS works. Not when a center was picked: its route sets the view.
+  const search = useRef(location.search);
+  search.current = location.search;
   usePageLoad(() => {
     api<EvacCenter[]>('/evacuation-centers').then(setCenters).catch(() => {});
     api<Incident[]>('/incidents?status=active').then(setIncidents).catch(() => {});
-    getLocation().then((l) => setMe({ lat: l.lat, lng: l.lng }));
+    getLocation().then((l) => {
+      setMe({ lat: l.lat, lng: l.lng });
+      if (l.fromGps && !new URLSearchParams(search.current).get('focus')) {
+        map.current?.flyTo({ center: [l.lng, l.lat], zoom: 16.5, duration: 1200 });
+      }
+    });
   });
 
   // Create the map once
