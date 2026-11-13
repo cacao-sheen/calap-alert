@@ -1,8 +1,8 @@
-import { IonLabel, IonSegment, IonSegmentButton } from '@ionic/react';
+import { IonButton, IonIcon, IonLabel, IonSegment, IonSegmentButton } from '@ionic/react';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import type { EvacCenter, Incident, SharedLocation } from '../types';
-import { businessOutline } from 'ionicons/icons';
+import { businessOutline, peopleOutline, person } from 'ionicons/icons';
 import { centerState, INCIDENT_INFO, SAFETY, timeAgo } from '../utils';
 
 // Free vector map tiles with 3D buildings (no API key needed)
@@ -35,14 +35,15 @@ function popup(title: string, lines: string[]) {
 type Props = {
   centers?: EvacCenter[];
   incidents?: Incident[];
-  people?: SharedLocation[]; // residents sharing their location, coloured by safety status
+  people?: SharedLocation[]; // residents sharing their location
+  checkInRunning?: boolean; // true = colour residents by safety status; false = all green
   height?: number;
   focus?: { lat: number; lng: number } | null;
   zoom?: number;
   onIncidentClick?: (id: number) => void;
 };
 
-export default function MapView({ centers = [], incidents = [], people = [], height = 320, focus, zoom = 15.5, onIncidentClick }: Props) {
+export default function MapView({ centers = [], incidents = [], people = [], checkInRunning = false, height = 320, focus, zoom = 15.5, onIncidentClick }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -102,15 +103,15 @@ export default function MapView({ centers = [], incidents = [], people = [], hei
         .setPopup(popup(c.name, [`${c.currentOccupancy} / ${c.capacity} evacuees · ${st.label}`, `Brgy. ${c.barangay}`]))
         .addTo(m));
     }
+    // Without a disaster check-in nobody has a status yet ("unaccounted" would show everyone in red), so all green
     for (const p of people) {
-      const dot = document.createElement('div');
-      dot.className = 'person-dot';
-      dot.style.background = SAFETY[p.status].hex;
-      dot.title = `${p.firstName} ${p.lastName}`;
-      markers.current.push(new maplibregl.Marker({ element: dot })
+      const element = pin(checkInRunning ? SAFETY[p.status].hex : SAFETY.safe.hex, person, 28);
+      element.classList.add('person-pin');
+      element.title = `${p.firstName} ${p.lastName}`;
+      markers.current.push(new maplibregl.Marker({ element })
         .setLngLat([p.lng, p.lat])
         .setPopup(popup(`${p.firstName} ${p.lastName}`, [
-          `${SAFETY[p.status].label} · Brgy. ${p.barangay}`,
+          `${checkInRunning ? SAFETY[p.status].label : 'Sharing location'} · Brgy. ${p.barangay}`,
           p.contactNumber ?? 'No phone number',
           `Location updated ${timeAgo(p.updatedAt)}`,
         ]))
@@ -126,7 +127,7 @@ export default function MapView({ centers = [], incidents = [], people = [], hei
         .setPopup(popup(`${info.label} · ${i.address ?? ''}`, [i.description, `Status: ${i.status}`]))
         .addTo(m));
     }
-  }, [centers, incidents, people, onIncidentClick]);
+  }, [centers, incidents, people, checkInRunning, onIncidentClick]);
 
   useEffect(() => {
     if (focus && map.current) map.current.flyTo({ center: [focus.lng, focus.lat], zoom: Math.max(zoom, 16.5) });
@@ -136,6 +137,19 @@ export default function MapView({ centers = [], incidents = [], people = [], hei
     map.current?.easeTo({ pitch: mode === '3d' ? 50 : 0, bearing: mode === '3d' ? -20 : 0, duration: 700 });
   }, [mode]);
 
+  // Residents can be far from Calapan proper (where the map opens), so jump to them on request
+  function showPeople() {
+    const m = map.current;
+    if (!m || !people.length) return;
+    if (people.length === 1) {
+      m.flyTo({ center: [people[0].lng, people[0].lat], zoom: 16.5 });
+      return;
+    }
+    const bounds = new maplibregl.LngLatBounds();
+    people.forEach((p) => bounds.extend([p.lng, p.lat]));
+    m.fitBounds(bounds, { padding: 80, maxZoom: 16.5 });
+  }
+
   // At least `height` px; taller when the window has room (e.g. zoomed out)
   return (
     <div ref={wrap} className="map-wrap" style={{ height:`max(${height}px, ${(height / 9).toFixed(1)}vh)` }}>
@@ -144,6 +158,12 @@ export default function MapView({ centers = [], incidents = [], people = [], hei
         <IonSegmentButton value="2d"><IonLabel>2D</IonLabel></IonSegmentButton>
         <IonSegmentButton value="3d"><IonLabel>3D</IonLabel></IonSegmentButton>
       </IonSegment>
+      {people.length > 0 && (
+        <IonButton className="map-people" size="small" onClick={showPeople}>
+          <IonIcon slot="start" icon={peopleOutline} />
+          Show {people.length} sharing location
+        </IonButton>
+      )}
     </div>
   );
 }

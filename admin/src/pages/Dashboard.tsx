@@ -113,10 +113,10 @@ export default function Dashboard() {
       <div className="row-2">
         <IonCard className="panel grow">
           <IonCardHeader className="between">
-            <IonCardTitle>Live Map<small className="section-hint">Tap a pin to see details. Dots are residents sharing their location ({people.length}).</small></IonCardTitle>
+            <IonCardTitle>Live Map<small className="section-hint">Tap a pin to see details. Person pins are residents sharing their location ({people.length}).</small></IonCardTitle>
           </IonCardHeader>
           <IonCardContent>
-            <MapView centers={centers} incidents={incidents} people={people} height={360} onIncidentClick={openIncident} />
+            <MapView centers={centers} incidents={incidents} people={people} checkInRunning={!!summary.event} height={360} onIncidentClick={openIncident} />
           </IonCardContent>
         </IonCard>
         <IonCard className="panel side wide">
