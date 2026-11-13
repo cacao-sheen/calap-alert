@@ -118,8 +118,9 @@ export default function MapView({ centers = [], incidents = [], height = 320, fo
     map.current?.easeTo({ pitch: mode === '3d' ? 50 : 0, bearing: mode === '3d' ? -20 : 0, duration: 700 });
   }, [mode]);
 
+  // At least `height` px; taller when the window has room (e.g. zoomed out)
   return (
-    <div className="map-wrap" style={{ height }}>
+    <div className="map-wrap" style={{ height: `max(${height}px, ${(height / 9).toFixed(1)}vh)` }}>
       <div ref={el} className="map" />
       <IonSegment className="map-toggle" value={mode} onIonChange={(e) => setMode(e.detail.value as '2d' | '3d')}>
         <IonSegmentButton value="2d"><IonLabel>2D</IonLabel></IonSegmentButton>

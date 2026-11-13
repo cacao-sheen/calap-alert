@@ -46,7 +46,7 @@
 .admin-toolbar ion-title { font-size: 22px; font-weight: 700; }
 .toolbar-actions ion-button { --border-radius: var(--r-md); font-weight: 600; text-transform: none; margin-left: 8px; }
 .admin-content { --background: #f1f5f9; }
-.page { padding: 8px 28px 40px; display: flex; flex-direction: column; gap: 20px; max-width: 1400px; }
+.page { padding: 8px 28px 40px; display: flex; flex-direction: column; gap: 20px; width: 100%; } /* fills the window at any zoom */
 .page > *, .row-2 > *, .table-tools > * { min-width: 0; } /* let wide tables scroll inside their card instead of stretching the page */
 ion-segment-button { text-transform: none; letter-spacing: 0; }
 .page h1 { font-size: 24px; font-weight: 700; margin: 0; }
@@ -93,8 +93,8 @@ ion-card-header.between { flex-direction: row; }
 .bar > div { height: 100%; border-radius: 999px; }
 .total-line { background: #f8fafc; border-radius: var(--r-md); padding: 12px; }
 .row-2 { display: flex; gap: 16px; align-items: flex-start; }
-.panel.side { width: 340px; flex-shrink: 0; }
-.panel.detail { width: 440px; flex-shrink: 0; position: sticky; top: 0; }
+.panel.side { width: clamp(340px, 26%, 560px); flex-shrink: 0; }
+.panel.detail { width: clamp(440px, 32%, 640px); flex-shrink: 0; position: sticky; top: 0; }
 .temp { font-size: 34px; font-weight: 700; color: #0f172a; }
 .weather-icon { width: 56px; height: 56px; border-radius: var(--r-lg); background: #dbeafe; color: #1d4ed8; display: inline-flex; align-items: center; justify-content: center; font-size: 34px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -178,7 +178,7 @@ ion-modal.form-modal { --width: 560px; --height: min(720px, 92vh); --border-radi
 @media (max-width: 1200px) {
   .kpis { grid-template-columns: repeat(3, 1fr); }
   .row-2 { flex-direction: column; align-items: stretch; }
-  .panel.side, .panel.detail { width: 100%; position: static; }
+  .panel.side, .panel.side.wide, .panel.detail { width: 100%; position: static; }
 }
 @media (max-width: 700px) {
   ion-modal.form-modal { --width: 100%; --height: 100%; --border-radius: 0; }
@@ -208,7 +208,7 @@ ion-modal.form-modal { --width: 560px; --height: min(720px, 92vh); --border-radi
 .empty ion-icon { font-size: 36px; color: #94a3b8; }
 .loading { display: flex; justify-content: center; padding: 32px; }
 .menu-label + ion-list ion-item { transition: background 0.15s; }
-.panel.side.wide { width: 380px; }
+.panel.side.wide { width: clamp(380px, 28%, 600px); }
 .tight-row { gap: 6px; }
 .confirm-place ion-icon, .link ion-icon { vertical-align: -2px; }
 .chips ion-chip ion-icon { margin-inline-end: 4px; }
