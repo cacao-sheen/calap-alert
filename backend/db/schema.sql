@@ -1,8 +1,8 @@
 -- Calap Alert database schema (PostgreSQL)
--- Covers Brgy. Ibaba East and Brgy. Ibaba West, Calapan City.
+-- Covers the 62 barangays of Calapan City (Brgy. Ibaba East and Ibaba West hold the test data).
 -- WARNING: running this file DELETES the existing tables and their data.
 
-DROP TABLE IF EXISTS push_tokens, household_invites, family_links, incident_updates, incidents, safety_checkins, alerts,
+DROP TABLE IF EXISTS push_tokens, resident_locations, household_invites, family_links, incident_updates, incidents, safety_checkins, alerts,
   disaster_events, users, residents, households, evacuation_centers, barangays CASCADE;
 
 CREATE TABLE barangays (
@@ -125,7 +125,7 @@ CREATE TABLE alerts (
   title       TEXT NOT NULL,
   message     TEXT NOT NULL,
   level       TEXT NOT NULL DEFAULT 'warning' CHECK (level IN ('info', 'warning', 'danger')),
-  barangay_id INT  REFERENCES barangays(id),   -- NULL = both barangays
+  barangay_id INT  REFERENCES barangays(id),   -- NULL = all barangays
   evacuate    BOOLEAN NOT NULL DEFAULT false,  -- evacuation order: tapping the notification opens Live View
   created_by  INT  REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -151,6 +151,16 @@ CREATE TABLE household_invites (
   relationship     TEXT NOT NULL,  -- what the invited person is to the inviter, e.g. Mother
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (from_resident_id, to_resident_id)
+);
+
+-- Where residents are right now, while "Share my location" is on in the app (one row per resident).
+-- Turning sharing off deletes the row.
+CREATE TABLE resident_locations (
+  resident_id INT PRIMARY KEY REFERENCES residents(id) ON DELETE CASCADE,
+  lat         DOUBLE PRECISION NOT NULL,
+  lng         DOUBLE PRECISION NOT NULL,
+  accuracy    REAL,              -- metres, as reported by the phone
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Phones that get push notifications (Firebase Cloud Messaging tokens)

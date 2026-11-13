@@ -11,7 +11,7 @@ import TypeIcon from '../components/TypeIcon';
 import FormModal from '../components/FormModal';
 import MapView from '../components/MapView';
 import { usePageLoad } from '../hooks';
-import type { Alert, BarangayStats, DisasterEvent, EvacCenter, Incident, Summary, Weather, WeatherEvent } from '../types';
+import type { Alert, BarangayStats, DisasterEvent, EvacCenter, Incident, SharedLocation, Summary, Weather, WeatherEvent } from '../types';
 import { centerState, fmt, INCIDENT_INFO, INCIDENT_STATUS, pct, placeName, timeOf, weatherText } from '../utils';
 
 export default function Dashboard() {
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState<'event' | 'alert' | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [people, setPeople] = useState<SharedLocation[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +40,7 @@ export default function Dashboard() {
       api<Weather>('/weather').then(setWeather).catch(() => setWeather(null));
       api<WeatherEvent>('/weather/event').then(setWeatherEvent).catch(() => setWeatherEvent(null));
       api<Alert[]>('/alerts?active=1&limit=50').then(setAlerts).catch(() => setAlerts([]));
+      api<SharedLocation[]>('/locations').then(setPeople).catch(() => setPeople([]));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -73,7 +75,7 @@ export default function Dashboard() {
     <AdminPage title="Dashboard" actions={actions}>
       <p className="muted subtitle">
         {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-        {' · '}Brgy. Ibaba East &amp; Ibaba West, Calapan City
+        {' · '}Calapan City
       </p>
       {error && <p className="error">{error}</p>}
 
@@ -111,10 +113,10 @@ export default function Dashboard() {
       <div className="row-2">
         <IonCard className="panel grow">
           <IonCardHeader className="between">
-            <IonCardTitle>Live Map<small className="section-hint">Tap a pin to see details. Tap an incident to open it.</small></IonCardTitle>
+            <IonCardTitle>Live Map<small className="section-hint">Tap a pin to see details. Dots are residents sharing their location ({people.length}).</small></IonCardTitle>
           </IonCardHeader>
           <IonCardContent>
-            <MapView centers={centers} incidents={incidents} height={360} onIncidentClick={openIncident} />
+            <MapView centers={centers} incidents={incidents} people={people} height={360} onIncidentClick={openIncident} />
           </IonCardContent>
         </IonCard>
         <IonCard className="panel side wide">
@@ -143,7 +145,8 @@ export default function Dashboard() {
           <IonCardTitle>Barangay Status{event ? ` — ${event.name}` : ''}<small className="section-hint">How many residents are safe, evacuated or still unaccounted for</small></IonCardTitle>
           <small className="muted">{pct(totals.safe + totals.evacuated, totals.residents)} accounted for overall</small>
         </IonCardHeader>
-        <IonCardContent className="two-col">
+        <IonCardContent className="brgy-grid">
+          {summary.barangays.length === 0 && <p className="muted">No residents yet. Barangays show here once people sign up.</p>}
           {summary.barangays.map((b) => <BarangayBox key={b.id} b={b} />)}
         </IonCardContent>
       </IonCard>
@@ -280,7 +283,7 @@ function ActiveAlerts({ alerts, event, onEnded }: { alerts: Alert[]; event: Disa
             <IonLabel className="ion-text-wrap">
               <h3><b>{a.title}</b>{a.evacuate && <IonBadge color="danger" className="tag">Evacuation order</IonBadge>}</h3>
               <p>{a.message}</p>
-              <p className="small">{a.barangay ? `Brgy. ${a.barangay}` : 'Both barangays'} · sent {timeOf(a.createdAt)}</p>
+              <p className="small">{a.barangay ? `Brgy. ${a.barangay}` : 'All barangays'} · sent {timeOf(a.createdAt)}</p>
             </IonLabel>
             <IonButton slot="end" color="danger" fill="outline" size="small" onClick={() => end(a)}>
               {a.evacuate ? 'Lift order' : 'End alert'}
@@ -442,7 +445,7 @@ function AlertForm({ isOpen, barangays, event, onClose, onSaved, onManageEvent }
     <FormModal isOpen={isOpen} title="Send alert to residents" onClose={onClose}>
       <form className="stack" onSubmit={send}>
         <IonSelect label="Send to" labelPlacement="stacked" fill="outline" value={barangayId} onIonChange={(e) => setBarangayId(e.detail.value)}>
-          <IonSelectOption value="all">Both barangays</IonSelectOption>
+          <IonSelectOption value="all">All barangays</IonSelectOption>
           {barangays.map((b) => <IonSelectOption key={b.id} value={String(b.id)}>Brgy. {b.name} only</IonSelectOption>)}
         </IonSelect>
         <div className={`confirm-card evac-toggle ${evacuate ? 'on' : ''}`}>

@@ -1,4 +1,4 @@
-// Creates all tables, the two barangays, and one admin account. No sample data.
+// Creates all tables, the 62 barangays of Calapan City, and one admin account. No sample data.
 // WARNING: this deletes ALL existing data. Run with:  npm run db:setup
 //
 // The admin login comes from backend/.env (ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME).
@@ -6,6 +6,7 @@
 import { readFile } from 'node:fs/promises';
 import bcrypt from 'bcryptjs';
 import { pool } from '../src/db.js';
+import { CALAPAN_BARANGAYS } from '../src/geo.js';
 
 const email = process.env.ADMIN_EMAIL || 'admin@calapan.test';
 const password = process.env.ADMIN_PASSWORD || 'Admin123!';
@@ -16,7 +17,7 @@ try {
   const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
   await client.query('BEGIN');
   await client.query(schema);
-  for (const b of ['Ibaba East', 'Ibaba West']) {
+  for (const b of CALAPAN_BARANGAYS) {
     await client.query('INSERT INTO barangays (name) VALUES ($1)', [b]);
   }
   await client.query(
@@ -24,7 +25,7 @@ try {
     [email.toLowerCase(), await bcrypt.hash(password, 10), name],
   );
   await client.query('COMMIT');
-  console.log('Database is ready and empty (Brgy. Ibaba East and Ibaba West only).');
+  console.log(`Database is ready and empty (${CALAPAN_BARANGAYS.length} barangays of Calapan City).`);
   console.log(`Admin login: ${email}`);
   if (!process.env.ADMIN_PASSWORD) console.log('Using the default password Admin123! — change it with: npm run admin:password');
 } catch (err) {

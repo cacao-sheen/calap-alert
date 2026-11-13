@@ -6,6 +6,7 @@ import { businessOutline, homeOutline, mapOutline, personCircleOutline, warning 
 import { Redirect, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import PushSetup from './components/PushSetup';
+import LocationSharing from './components/LocationSharing';
 import Alerts from './pages/Alerts';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -84,6 +85,7 @@ function Routes() {
     <IonReactRouter>
       {/* key: start again for a different resident after logging in */}
       {user?.role === 'resident' && <PushSetup key={user.id} />}
+      {user?.role === 'resident' && <LocationSharing key={`loc-${user.id}`} />}
       <IonRouterOutlet>
         <Route exact path="/login" render={() => (user ? <Redirect to="/tabs/home" /> : <Login />)} />
         <Route exact path="/register" render={() => (user ? <Redirect to="/tabs/home" /> : <Register />)} />

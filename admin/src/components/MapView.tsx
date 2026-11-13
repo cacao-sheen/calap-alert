@@ -1,13 +1,13 @@
 import { IonLabel, IonSegment, IonSegmentButton } from '@ionic/react';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
-import type { EvacCenter, Incident } from '../types';
+import type { EvacCenter, Incident, SharedLocation } from '../types';
 import { businessOutline } from 'ionicons/icons';
-import { centerState, INCIDENT_INFO } from '../utils';
+import { centerState, INCIDENT_INFO, SAFETY, timeAgo } from '../utils';
 
 // Free vector map tiles with 3D buildings (no API key needed)
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
-const IBABA = { lat: 13.4135, lng: 121.18 };
+const CALAPAN = { lat: 13.4135, lng: 121.18 }; // city proper, where the map opens
 
 export function pin(bg: string, icon: string, size = 30) {
   const el = document.createElement('div');
@@ -35,13 +35,15 @@ function popup(title: string, lines: string[]) {
 type Props = {
   centers?: EvacCenter[];
   incidents?: Incident[];
+  people?: SharedLocation[]; // residents sharing their location, coloured by safety status
   height?: number;
   focus?: { lat: number; lng: number } | null;
   zoom?: number;
   onIncidentClick?: (id: number) => void;
 };
 
-export default function MapView({ centers = [], incidents = [], height = 320, focus, zoom = 15.5, onIncidentClick }: Props) {
+export default function MapView({ centers = [], incidents = [], people = [], height = 320, focus, zoom = 15.5, onIncidentClick }: Props) {
+  const wrap = useRef<HTMLDivElement>(null);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
@@ -52,11 +54,13 @@ export default function MapView({ centers = [], incidents = [], height = 320, fo
     const m = new maplibregl.Map({
       container: el.current,
       style: MAP_STYLE,
-      center: [focus?.lng ?? IBABA.lng, focus?.lat ?? IBABA.lat],
+      center: [focus?.lng ?? CALAPAN.lng, focus?.lat ?? CALAPAN.lat],
       zoom,
       pitch: 50,
       bearing: -20,
     });
+    // Full-screen button. The whole box goes full screen (not just the map) so the 2D/3D switch comes along.
+    m.addControl(new maplibregl.FullscreenControl({ container: wrap.current ?? undefined }), 'top-right');
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
     m.on('load', () => {
       const hasExtrusion = m.getStyle().layers?.some((l) => l.type === 'fill-extrusion');
@@ -98,6 +102,20 @@ export default function MapView({ centers = [], incidents = [], height = 320, fo
         .setPopup(popup(c.name, [`${c.currentOccupancy} / ${c.capacity} evacuees · ${st.label}`, `Brgy. ${c.barangay}`]))
         .addTo(m));
     }
+    for (const p of people) {
+      const dot = document.createElement('div');
+      dot.className = 'person-dot';
+      dot.style.background = SAFETY[p.status].hex;
+      dot.title = `${p.firstName} ${p.lastName}`;
+      markers.current.push(new maplibregl.Marker({ element: dot })
+        .setLngLat([p.lng, p.lat])
+        .setPopup(popup(`${p.firstName} ${p.lastName}`, [
+          `${SAFETY[p.status].label} · Brgy. ${p.barangay}`,
+          p.contactNumber ?? 'No phone number',
+          `Location updated ${timeAgo(p.updatedAt)}`,
+        ]))
+        .addTo(m));
+    }
     for (const i of incidents) {
       if (i.lat == null || i.lng == null) continue;
       const info = INCIDENT_INFO[i.type];
@@ -108,7 +126,7 @@ export default function MapView({ centers = [], incidents = [], height = 320, fo
         .setPopup(popup(`${info.label} · ${i.address ?? ''}`, [i.description, `Status: ${i.status}`]))
         .addTo(m));
     }
-  }, [centers, incidents, onIncidentClick]);
+  }, [centers, incidents, people, onIncidentClick]);
 
   useEffect(() => {
     if (focus && map.current) map.current.flyTo({ center: [focus.lng, focus.lat], zoom: Math.max(zoom, 16.5) });
@@ -120,7 +138,7 @@ export default function MapView({ centers = [], incidents = [], height = 320, fo
 
   // At least `height` px; taller when the window has room (e.g. zoomed out)
   return (
-    <div className="map-wrap" style={{ height: `max(${height}px, ${(height / 9).toFixed(1)}vh)` }}>
+    <div ref={wrap} className="map-wrap" style={{ height:`max(${height}px, ${(height / 9).toFixed(1)}vh)` }}>
       <div ref={el} className="map" />
       <IonSegment className="map-toggle" value={mode} onIonChange={(e) => setMode(e.detail.value as '2d' | '3d')}>
         <IonSegmentButton value="2d"><IonLabel>2D</IonLabel></IonSegmentButton>

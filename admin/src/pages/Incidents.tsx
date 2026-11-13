@@ -87,10 +87,10 @@ export default function Incidents() {
   return (
     <AdminPage title="Incident Reports" actions={<IonButton onClick={loadList}><IonIcon slot="start" icon={refresh} />Refresh</IonButton>}>
       <div className="between wrap">
-        <p className="muted subtitle">{list.length} shown · Brgy. Ibaba East &amp; Ibaba West</p>
+        <p className="muted subtitle">{list.length} shown · Calapan City</p>
         <div className="row">
           <IonSelect className="filter" label="Barangay" labelPlacement="stacked" fill="outline" interface="popover" value={barangayId} onIonChange={(e) => setBarangayId(e.detail.value)}>
-            <IonSelectOption value="all">Both barangays</IonSelectOption>
+            <IonSelectOption value="all">All barangays</IonSelectOption>
             {barangays.map((b) => <IonSelectOption key={b.id} value={String(b.id)}>Brgy. {b.name}</IonSelectOption>)}
           </IonSelect>
           <IonSelect className="filter" label="Status" labelPlacement="stacked" fill="outline" interface="popover" value={status} onIonChange={(e) => setStatus(e.detail.value)}>
@@ -150,7 +150,7 @@ export default function Incidents() {
                   <div className="stat"><small>Reported by</small><b>{detail.reporterName ?? '—'}</b></div>
                   <div className="stat"><small>Time</small><b>{timeOf(detail.createdAt)}</b></div>
                   <div className="stat"><small>Severity</small><b className={detail.severity === 'high' ? 't-danger' : ''}>{detail.severity}</b></div>
-                  <div className="stat"><small>Barangay</small><b className={detail.barangay ? '' : 't-warning'}>{detail.barangay ?? 'Outside Ibaba'}</b></div>
+                  <div className="stat"><small>Barangay</small><b className={detail.barangay ? '' : 't-warning'}>{detail.barangay ?? 'Unknown'}</b></div>
                 </div>
                 <p className="quote">“{detail.description}”</p>
                 <b>Response timeline</b>

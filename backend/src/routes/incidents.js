@@ -68,10 +68,10 @@ router.post('/', async (req, res) => {
   const reporterName = me?.first_name ? `${me.first_name} ${me.last_name}` : me?.display_name ?? null;
 
   // The barangay is where the incident IS (from its GPS spot), not where the reporter lives.
-  // A spot outside Ibaba East & West gets no barangay. Without GPS, fall back to the reporter's barangay.
+  // A spot outside Calapan (or one OpenStreetMap can't place) gets no barangay. Without GPS, use the reporter's barangay.
   let barangayId = b.barangayId ?? me?.barangay_id ?? null;
   if (Number.isFinite(b.lat) && Number.isFinite(b.lng)) {
-    const name = barangayAt(b.lat, b.lng);
+    const name = await barangayAt(b.lat, b.lng);
     const { rows: [found] } = name ? await query('SELECT id FROM barangays WHERE name = $1', [name]) : { rows: [] };
     barangayId = found?.id ?? null;
   }

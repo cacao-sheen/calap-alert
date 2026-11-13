@@ -9,9 +9,9 @@ import { pin } from './MapView';
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 // Free satellite photos (Esri World Imagery, no API key) so the admin can see the real buildings and shops
 const SATELLITE_TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-const IBABA = { lat: 13.4135, lng: 121.18 };
+const CALAPAN = { lat: 13.4135, lng: 121.18 }; // city proper, where the map opens
 
-type Result = { title: string; detail: string; kind: string; address: string; barangay: string; lat: number; lng: number };
+type Result = { title: string; detail: string; kind: string; address: string; barangay: string | null; lat: number; lng: number };
 export type Details = { name?: string; address?: string; barangay?: string };
 
 type Props = {
@@ -22,18 +22,9 @@ type Props = {
   onDetails: (details: Details) => void;
 };
 
-// Barangay of the closest existing center, used when the map service can't tell
-function nearestBarangay(centers: EvacCenter[], lat: number, lng: number) {
-  let best: { d: number; b: string } | null = null;
-  for (const c of centers) {
-    const d = (c.lat - lat) ** 2 + (c.lng - lng) ** 2;
-    if (!best || d < best.d) best = { d, b: c.barangay };
-  }
-  return best?.b;
-}
-
 // Map where the admin clicks (or drags the red pin) to choose the spot of a new evacuation center.
 export default function LocationPicker({ lat, lng, centers, onChange, onDetails }: Props) {
+  const wrap = useRef<HTMLDivElement>(null);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const marker = useRef<maplibregl.Marker | null>(null);
@@ -46,23 +37,25 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
 
   // Keep the latest callbacks for the map listeners, which are created only once
   const lookup = useRef(0); // only the newest click's answer is used
-  const handlers = useRef({ onChange, onDetails, centers });
-  handlers.current = { onChange, onDetails, centers };
+  const handlers = useRef({ onChange, onDetails });
+  handlers.current = { onChange, onDetails };
 
-  // Pin a spot, then fill in the name / address / barangay we can work out from it
-  // `known` comes from a picked search suggestion, which is already accurate, so no extra lookup is needed
+  // Pin a spot, then fill in the name / address / barangay we can work out from it.
+  // `known` comes from a picked search suggestion (name + address); its barangay is still looked up if missing.
   function choose(la: number, ln: number, known?: Details) {
-    const { onChange, onDetails, centers } = handlers.current;
+    const { onChange, onDetails } = handlers.current;
     onChange(Number(la.toFixed(6)), Number(ln.toFixed(6)));
     const mine = ++lookup.current;
-    if (known) return onDetails(known);
-    onDetails({ barangay: nearestBarangay(centers, la, ln) });
+    onDetails(known ?? { barangay: '' }); // clear the old pin's barangay while we look
+    if (known?.barangay) return;
     api<{ street: string | null; place: string | null; barangay: string | null; address: string | null }>(`/street?lat=${la}&lng=${ln}&places=1`)
-      .then((r) => mine === lookup.current && handlers.current.onDetails({
-        name: r.place ?? '', // empty clears the previous pin's auto-filled name
-        address: r.address ?? '',
-        barangay: r.barangay ?? undefined,
-      }))
+      .then((r) => mine === lookup.current && handlers.current.onDetails(known
+        ? { barangay: r.barangay ?? '' }
+        : {
+            name: r.place ?? '', // empty clears the previous pin's auto-filled name
+            address: r.address ?? '',
+            barangay: r.barangay ?? '', // empty = OpenStreetMap doesn't know; the admin picks it
+          }))
       .catch(() => {});
   }
 
@@ -70,8 +63,9 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
     if (!el.current) return;
     const start = Number.isFinite(parseFloat(lat)) && Number.isFinite(parseFloat(lng))
       ? { lat: parseFloat(lat), lng: parseFloat(lng) }
-      : IBABA;
+      : CALAPAN;
     const m = new maplibregl.Map({ container: el.current, style: MAP_STYLE, center: [start.lng, start.lat], zoom: 15.5 });
+    m.addControl(new maplibregl.FullscreenControl({ container: wrap.current ?? undefined }), 'top-right');
     m.addControl(new maplibregl.NavigationControl(), 'top-right');
     m.on('click', (e) => choose(e.lngLat.lat, e.lngLat.lng));
     // Satellite photo goes under the first label layer, so street and place names still show on top of it
@@ -166,7 +160,7 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
     setResults([]);
     setNote('');
     map.current?.flyTo({ center: [r.lng, r.lat], zoom: 17 });
-    choose(r.lat, r.lng, { name: r.title, address: r.address, barangay: r.barangay });
+    choose(r.lat, r.lng, { name: r.title, address: r.address, barangay: r.barangay ?? '' });
   }
 
   function useMyLocation() {
@@ -204,7 +198,7 @@ export default function LocationPicker({ lat, lng, centers, onChange, onDetails 
           ))}
         </IonList>
       )}
-      <div className="map-wrap picker-map">
+      <div ref={wrap} className="map-wrap picker-map">
         <IonSegment className="map-toggle picker-view" value={view} onIonChange={(e) => setView(e.detail.value as 'satellite' | 'map')}>
           <IonSegmentButton value="satellite"><IonLabel>Satellite</IonLabel></IonSegmentButton>
           <IonSegmentButton value="map"><IonLabel>Map</IonLabel></IonSegmentButton>

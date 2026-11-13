@@ -1,6 +1,6 @@
 # Calap Alert — project notes for Claude
 
-Disaster-response app for **Brgy. Ibaba East** and **Brgy. Ibaba West**, Calapan City (Oriental Mindoro, PH).
+Disaster-response app for the 62 barangays of **Calapan City** (Oriental Mindoro, PH). Brgy. Ibaba East and Ibaba West hold the test data.
 School final project. The student is a beginner: explain steps simply, one command at a time, in plain English.
 
 ## Structure
@@ -11,7 +11,7 @@ School final project. The student is a beginner: explain steps simply, one comma
 | `admin/` | **Ionic React** 8 + Vite, react-router v5 — admin web portal (IonSplitPane + IonMenu) | 5174 |
 
 - Both frontends MUST stay Ionic React (school requirement). Use Ionic components (IonPage, IonCard, IonButton, IonModal, IonToast, etc.), not plain HTML widgets, unless Ionic has no equivalent (e.g. tables).
-- Only two barangays: Ibaba East and Ibaba West. Do not add others.
+- Covers all of Calapan City, not beyond it. The barangay list is `CALAPAN_BARANGAYS` in `backend/src/geo.js`; a spot's barangay comes from OpenStreetMap via `barangayAt()` (null = outside Calapan / unknown).
 - Maps: MapLibre GL + OpenFreeMap "liberty" style (free, no API key), 3D buildings. Weather: Open-Meteo (free, no key), proxied by `backend/src/routes/weather.js`.
 - Frontends call the API through `src/api.ts` (`VITE_API_URL`, default `http://localhost:4000`).
 - Pages load data with `usePageLoad()` from `src/hooks.ts` (runs on mount AND on Ionic view enter). Use it instead of bare `useIonViewWillEnter`.
@@ -19,7 +19,7 @@ School final project. The student is a beginner: explain steps simply, one comma
 
 ## Backend
 - Entry `backend/src/index.js`; routes in `backend/src/routes/`; shared SQL in `backend/src/queries.js`.
-- Schema: `backend/db/schema.sql`. Setup: `backend/scripts/setup-db.js` (`npm run db:setup` — **erases all data**; creates only the 2 barangays + 1 admin, no sample data). Change the admin password with `npm run admin:password -- <email> "<new password>"`.
+- Schema: `backend/db/schema.sql`. Setup: `backend/scripts/setup-db.js` (`npm run db:setup` — **erases all data**; creates the 62 Calapan barangays + 1 admin, no sample data; `npm run db:migrate` adds any missing barangays). Change the admin password with `npm run admin:password -- <email> "<new password>"`.
 - Safety status per resident = latest `safety_checkins` row for the active `disaster_events` row; no row = `unaccounted`.
 - Errors meant for users: `throw httpError(status, message)` from `src/http.js`. Express 5 catches async errors.
 - Env vars in `backend/.env` (copy from `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGIN`, `FIREBASE_SERVICE_ACCOUNT` (push notifications, optional). Never commit `.env`.

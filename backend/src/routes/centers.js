@@ -24,7 +24,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   if (!Number.isFinite(Number(lng)) || Math.abs(Number(lng)) > 180) throw httpError(400, 'Longitude must be a number between -180 and 180');
   if (!(Number(capacity) > 0)) throw httpError(400, 'Capacity must be more than 0');
   const b = await query('SELECT id FROM barangays WHERE name = $1', [barangay]);
-  if (!b.rows.length) throw httpError(400, 'Choose Ibaba East or Ibaba West');
+  if (!b.rows.length) throw httpError(400, 'Choose the barangay of this center');
   const list = Array.isArray(facilities) ? facilities.map((f) => String(f).trim()).filter(Boolean) : [];
   const { rows } = await query(
     `INSERT INTO evacuation_centers (name, barangay_id, address, lat, lng, capacity, facilities)
@@ -35,19 +35,26 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   res.status(201).json(created.rows[0]);
 });
 
-// Admin: update how many evacuees are inside, capacity, or open/closed
+// Admin: update how many evacuees are inside, capacity, open/closed, or the barangay
 router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
-  const { currentOccupancy, capacity, isOpen } = req.body ?? {};
+  const { currentOccupancy, capacity, isOpen, barangay } = req.body ?? {};
   if (currentOccupancy !== undefined && !(Number(currentOccupancy) >= 0)) throw httpError(400, 'Occupancy must be 0 or more');
   if (capacity !== undefined && !(Number(capacity) > 0)) throw httpError(400, 'Capacity must be more than 0');
+  let barangayId = null;
+  if (barangay !== undefined) {
+    const { rows: [b] } = await query('SELECT id FROM barangays WHERE name = $1', [barangay]);
+    if (!b) throw httpError(400, 'Choose the barangay of this center');
+    barangayId = b.id;
+  }
   const { rowCount } = await query(
     `UPDATE evacuation_centers
      SET current_occupancy = COALESCE($2, current_occupancy),
          capacity = COALESCE($3, capacity),
          is_open = COALESCE($4, is_open),
+         barangay_id = COALESCE($5, barangay_id),
          updated_at = now()
      WHERE id = $1`,
-    [req.params.id, currentOccupancy ?? null, capacity ?? null, isOpen ?? null],
+    [req.params.id, currentOccupancy ?? null, capacity ?? null, isOpen ?? null, barangayId],
   );
   if (!rowCount) throw httpError(404, 'Evacuation center not found');
   const { rows } = await query(`${SELECT} WHERE c.id = $1`, [req.params.id]);

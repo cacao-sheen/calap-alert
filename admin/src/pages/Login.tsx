@@ -39,7 +39,7 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
               <b>Calap Alert</b>
             </div>
             <div>
-              <h2>Disaster response for Brgy. Ibaba East &amp; Ibaba West</h2>
+              <h2>Disaster response for Calapan City</h2>
               <ul>
                 <li><IonIcon icon={megaphoneOutline} />Send alerts to residents in seconds</li>
                 <li><IonIcon icon={peopleOutline} />See who is safe, evacuated or needs help</li>

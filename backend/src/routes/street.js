@@ -1,37 +1,15 @@
 import { Router } from 'express';
-import { barangayAt, metersBetween, nearestBarangay } from '../geo.js';
+import { barangayAt, matchBarangay, reverseGeocode } from '../geo.js';
 import { httpError } from '../http.js';
 
 const router = Router();
 
-// Street name for a GPS point, from OpenStreetMap's Nominatim (free, no API key).
-// Nominatim asks for a User-Agent and at most 1 request per second, so results are cached by ~11 m grid cell.
+// Street name for a GPS point, from OpenStreetMap's Nominatim (free, no API key). Cached by ~11 m grid cell.
 const cache = new Map();
-let lastCall = 0;
-
-// One Nominatim reverse lookup, waiting for our turn so we stay under 1 request per second (max ~4 s queue)
-async function reverse(lat, lng, extra = {}) {
-  const slot = Math.max(Date.now(), lastCall + 1000);
-  if (slot - Date.now() > 4000) throw new Error('busy');
-  lastCall = slot;
-  await new Promise((r) => setTimeout(r, slot - Date.now()));
-
-  const params = new URLSearchParams({ lat, lon: lng, format: 'jsonv2', zoom: 17, addressdetails: 1, ...extra });
-  const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
-    headers: { 'User-Agent': 'CalapAlert-school-project/1.0' },
-    signal: AbortSignal.timeout(8_000),
-  });
-  if (!resp.ok) throw new Error(`Nominatim responded ${resp.status}`);
-  return resp.json();
-}
 
 const roadOf = (j) => j?.address?.road ?? j?.address?.pedestrian ?? j?.address?.neighbourhood ?? null;
 
-// Names the barangay only when the spot is really inside Ibaba East / West (not just the nearer one)
-const cleanAddress = (street, lat, lng) => {
-  const brgy = barangayAt(lat, lng);
-  return [street, brgy && `Brgy. ${brgy}`, 'Calapan City'].filter(Boolean).join(', ');
-};
+const cleanAddress = (street, barangay) => [street, barangay && `Brgy. ${barangay}`, 'Calapan City'].filter(Boolean).join(', ');
 
 // Photon (free OpenStreetMap search, built for search-as-you-type) knows named places and their streets
 // much better than Nominatim does for Calapan.
@@ -59,12 +37,13 @@ router.get('/search', async (req, res) => {
         const p = f.properties;
         const [lng, lat] = f.geometry.coordinates;
         const area = p.locality ?? p.district ?? null;
+        const barangay = matchBarangay(p.locality) ?? matchBarangay(p.district) ?? null; // null = the app looks it up
         return {
           title: p.name ?? p.street ?? q,
           detail: [p.street, area].filter(Boolean).join(', '),
           kind: p.osm_value?.replace(/_/g, ' ') ?? '',
-          address: cleanAddress(p.street ?? (p.osm_key === 'highway' ? p.name : null), lat, lng),
-          barangay: nearestBarangay(lat, lng).name,
+          address: cleanAddress(p.street ?? (p.osm_key === 'highway' ? p.name : null), barangay),
+          barangay,
           lat,
           lng,
         };
@@ -104,10 +83,10 @@ router.get('/', async (req, res) => {
     let result;
     if (places) {
       // Only things within 60 m of the pin count, so the name is for the spot you clicked
-      const { place, street } = await lookAround(lat, lng);
-      result = { street, place, barangay: nearestBarangay(lat, lng).name, address: cleanAddress(street, lat, lng) };
+      const [{ place, street }, barangay] = await Promise.all([lookAround(lat, lng), barangayAt(lat, lng)]);
+      result = { street, place, barangay, address: cleanAddress(street, barangay) };
     } else {
-      result = { street: roadOf(await reverse(lat, lng)) };
+      result = { street: roadOf(await reverseGeocode(lat, lng)) };
     }
 
     if (cache.size > 500) cache.clear();

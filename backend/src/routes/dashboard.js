@@ -18,7 +18,7 @@ router.get('/summary', async (req, res) => {
              count(*) FILTER (WHERE rs.status = 'unaccounted')::int AS unaccounted,
              count(*) FILTER (WHERE rs.status IN ('unaccounted', 'need_help') AND (rs.age >= 60 OR rs."isPwd"))::int AS "vulnerableAtRisk"
       FROM barangays b LEFT JOIN rs ON rs."barangayId" = b.id
-      GROUP BY b.id ORDER BY b.name`),
+      GROUP BY b.id HAVING count(rs.id) > 0 ORDER BY b.name`),
     query(`SELECT type, count(*)::int AS n FROM incidents WHERE status <> 'resolved' GROUP BY type ORDER BY n DESC`),
     query(`SELECT count(*) FILTER (WHERE is_open)::int AS open,
                   COALESCE(sum(capacity), 0)::int AS capacity,

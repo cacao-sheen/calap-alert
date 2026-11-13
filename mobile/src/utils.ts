@@ -4,7 +4,7 @@ import {
 } from 'ionicons/icons';
 import type { EvacCenter, IncidentType, SafetyStatus, Weather } from './types';
 
-// Center of Brgy. Ibaba East / West. Used when GPS is not available.
+// Calapan City proper. Used when GPS is not available.
 export const DEFAULT_LOCATION = { lat: 13.4135, lng: 121.18 };
 
 // Deep, solid colors so each type is easy to tell apart (same as the admin portal)
@@ -95,7 +95,7 @@ export const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { ho
 
 export type Fix = { lat: number; lng: number; fromGps: boolean; accuracy: number | null };
 
-// Current GPS position, or the default Ibaba location if permission is denied.
+// Current GPS position, or the default Calapan location if permission is denied.
 // The first reading on a phone is often a rough guess from Wi-Fi / cell towers, so for reports and
 // check-ins (precise = true) we keep listening for a few seconds and use the most accurate reading.
 export function getLocation(precise = false): Promise<Fix> {

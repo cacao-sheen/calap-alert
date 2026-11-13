@@ -42,7 +42,7 @@ export default function Shell({ onLogout, children }: { onLogout: () => void; ch
           <span className="avatar">{initials}</span>
           <div className="account-text">
             <b>{name}</b>
-            <small>Ibaba East &amp; West</small>
+            <small>Calapan City</small>
           </div>
         </div>
       </header>

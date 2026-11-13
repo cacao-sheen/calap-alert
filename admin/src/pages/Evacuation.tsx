@@ -1,6 +1,6 @@
 import {
   IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon,
-  IonInput, IonLabel, IonModal, IonSegment, IonSegmentButton, IonTitle, IonToggle, IonToolbar, useIonAlert, useIonToast,
+  IonInput, IonModal, IonSelect, IonSelectOption, IonTitle, IonToggle, IonToolbar, useIonAlert, useIonToast,
 } from '@ionic/react';
 import { add, arrowBack, businessOutline, locationOutline } from 'ionicons/icons';
 import { useState } from 'react';
@@ -10,11 +10,11 @@ import Empty from '../components/Empty';
 import LocationPicker, { type Details } from '../components/LocationPicker';
 import MapView from '../components/MapView';
 import { usePageLoad } from '../hooks';
-import type { EvacCenter } from '../types';
+import type { Barangay, EvacCenter } from '../types';
 import { centerState, fmt, timeAgo } from '../utils';
 import { Bar } from './Dashboard';
 
-type Draft = { currentOccupancy: string; capacity: string; isOpen: boolean };
+type Draft = { currentOccupancy: string; capacity: string; isOpen: boolean; barangay: string };
 
 const EMPTY_NEW = { name: '', barangay: '', address: '', lat: '', lng: '', capacity: '', facilities: [] as string[], otherFacility: '' };
 const FACILITY_CHOICES = ['Water', 'Electricity', 'Restroom', 'Kitchen', 'Medical', 'Sleeping area', 'Wi-Fi'];
@@ -28,6 +28,7 @@ export default function Evacuation() {
   const [form, setForm] = useState(EMPTY_NEW);
   const setField = (patch: Partial<typeof EMPTY_NEW>) => setForm((f) => ({ ...f, ...patch }));
   const [centers, setCenters] = useState<EvacCenter[]>([]);
+  const [barangays, setBarangays] = useState<Barangay[]>([]);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [editingId, setEditingId] = useState<number | null>(null); // the row that is open for editing
 
@@ -35,11 +36,14 @@ export default function Evacuation() {
     api<EvacCenter[]>('/evacuation-centers')
       .then((list) => {
         setCenters(list);
-        setDrafts(Object.fromEntries(list.map((c) => [c.id, { currentOccupancy: String(c.currentOccupancy), capacity: String(c.capacity), isOpen: c.isOpen }])));
+        setDrafts(Object.fromEntries(list.map((c) => [c.id, { currentOccupancy: String(c.currentOccupancy), capacity: String(c.capacity), isOpen: c.isOpen, barangay: c.barangay }])));
       })
       .catch((e) => toast({ message: e.message, duration: 3000, color: 'danger' }));
 
-  usePageLoad(load);
+  usePageLoad(() => {
+    load();
+    api<Barangay[]>('/barangays').then(setBarangays).catch(() => {});
+  });
 
   const edit = (id: number, patch: Partial<Draft>) => setDrafts((d) => ({ ...d, [id]: { ...d[id], ...patch } }));
 
@@ -48,7 +52,7 @@ export default function Evacuation() {
     try {
       await api(`/evacuation-centers/${c.id}`, {
         method: 'PATCH',
-        body: { currentOccupancy: Number(d.currentOccupancy), capacity: Number(d.capacity), isOpen: d.isOpen },
+        body: { currentOccupancy: Number(d.currentOccupancy), capacity: Number(d.capacity), isOpen: d.isOpen, barangay: d.barangay },
       });
       toast({ message: `Saved ${c.name}`, duration: 2000, color: 'success' });
       setEditingId(null);
@@ -60,7 +64,7 @@ export default function Evacuation() {
 
   // Throw away unsaved changes and go back to the saved numbers
   function cancelEdit(c: EvacCenter) {
-    edit(c.id, { currentOccupancy: String(c.currentOccupancy), capacity: String(c.capacity), isOpen: c.isOpen });
+    edit(c.id, { currentOccupancy: String(c.currentOccupancy), capacity: String(c.capacity), isOpen: c.isOpen, barangay: c.barangay });
     setEditingId(null);
   }
 
@@ -152,7 +156,16 @@ export default function Evacuation() {
                       <b className="link" title="Show on the map" onClick={() => setFocus({ lat: c.lat, lng: c.lng })}><IonIcon icon={locationOutline} className="t-primary" /> {c.name}</b>
                       <div className="tags">{c.facilities.map((f) => <IonBadge key={f} color="light">{f}</IonBadge>)}</div>
                     </td>
-                    <td>{c.barangay}</td>
+                    <td>
+                      {editing
+                        ? (
+                          <IonSelect className="brgy-cell" fill="outline" interface="popover" aria-label="Barangay"
+                            value={d.barangay} onIonChange={(e) => edit(c.id, { barangay: String(e.detail.value) })}>
+                            {barangays.map((b) => <IonSelectOption key={b.id} value={b.name}>{b.name}</IonSelectOption>)}
+                          </IonSelect>
+                        )
+                        : c.barangay}
+                    </td>
                     <td>
                       {editing
                         ? <IonInput className="num" fill="outline" type="number" min={0} value={d.currentOccupancy} onIonInput={(e) => edit(c.id, { currentOccupancy: e.detail.value ?? '0' })} />
@@ -191,7 +204,7 @@ export default function Evacuation() {
         </div>
       </IonCard>
 
-      <IonModal className="form-modal" isOpen={adding} onDidDismiss={closeAdd}>
+      <IonModal className="form-modal wide" isOpen={adding} onDidDismiss={closeAdd}>
         <IonHeader>
           <IonToolbar>
             {step === 'details' && (
@@ -210,15 +223,14 @@ export default function Evacuation() {
               {form.lat && form.lng && (
                 <div className="confirm-card">
                   <div className="confirm-place"><IonIcon icon={locationOutline} className="t-danger" /> {form.name || <span className="muted">Unnamed spot</span>}</div>
-                  <div className="muted small">{form.address || 'Finding the address…'}</div>
                   {/* Always shown (filled in when the map knows the place) so the admin can type or fix the name */}
                   <IonInput className="ion-margin-top" label="Name of this place" labelPlacement="stacked" fill="outline" placeholder="e.g. Ibaba East Covered Court"
                     value={form.name} onIonInput={(e) => setField({ name: e.detail.value ?? '' })} />
-                  <div className="small ion-margin-top">Which barangay will it serve?</div>
-                  <IonSegment value={form.barangay || undefined} onIonChange={(e) => setField({ barangay: String(e.detail.value) })}>
-                    <IonSegmentButton value="Ibaba East"><IonLabel>Ibaba East</IonLabel></IonSegmentButton>
-                    <IonSegmentButton value="Ibaba West"><IonLabel>Ibaba West</IonLabel></IonSegmentButton>
-                  </IonSegment>
+                  {/* Filled in from the pin (OpenStreetMap); the admin can fix it */}
+                  <IonSelect className="ion-margin-top" label="Barangay" labelPlacement="stacked" fill="outline" interface="popover"
+                    placeholder="Choose the barangay" value={form.barangay || undefined} onIonChange={(e) => setField({ barangay: String(e.detail.value) })}>
+                    {barangays.map((b) => <IonSelectOption key={b.id} value={b.name}>{b.name}</IonSelectOption>)}
+                  </IonSelect>
                   <IonButton className="ion-margin-top" expand="block" disabled={!form.name.trim() || !form.barangay} onClick={() => setStep('details')}>Confirm location</IonButton>
                 </div>
               )}
@@ -227,7 +239,7 @@ export default function Evacuation() {
             <>
               <div className="confirm-card">
                 <div className="confirm-place"><IonIcon icon={locationOutline} className="t-danger" /> {form.name}</div>
-                <div className="muted small">{form.address}</div>
+                <div className="muted small">Brgy. {form.barangay}</div>
                 <IonButton size="small" fill="clear" onClick={() => setStep('locate')}>Change location</IonButton>
               </div>
               <IonInput className="ion-margin-top" label="Capacity (how many people)" labelPlacement="stacked" fill="outline" type="number" min={1} value={form.capacity} onIonInput={(e) => setField({ capacity: e.detail.value ?? '' })} />

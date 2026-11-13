@@ -12,12 +12,6 @@ import { usePageLoad } from '../hooks';
 import type { EvacCenter } from '../types';
 import { allowCompass, centerStatus, DEFAULT_LOCATION, distanceKm, formatDistance, getLocation, walkMinutes } from '../utils';
 
-const FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'available', label: 'Has space' },
-  { value: 'Ibaba East', label: 'Ibaba East' },
-  { value: 'Ibaba West', label: 'Ibaba West' },
-];
 
 export default function Evac() {
   const router = useIonRouter();
@@ -37,6 +31,12 @@ export default function Evac() {
     load();
     getLocation().then((l) => setMe({ lat: l.lat, lng: l.lng }));
   });
+
+  const filters = [
+    { value: 'all', label: 'All' },
+    { value: 'available', label: 'Has space' },
+    ...[...new Set((centers ?? []).map((c) => c.barangay))].sort().map((b) => ({ value: b, label: b })),
+  ];
 
   // Nearest first, so the best choice is always on top
   const list = (centers ?? [])
@@ -60,7 +60,7 @@ export default function Evac() {
         <div className="page-pad">
           <IonSearchbar placeholder="Search a center" value={search} onIonInput={(e) => setSearch(e.detail.value ?? '')} style={{ padding: 0 }} />
           <div className="filters">
-            {FILTERS.map((f) => (
+            {filters.map((f) => (
               <IonChip key={f.value} color={filter === f.value ? 'primary' : 'medium'} outline={filter !== f.value} onClick={() => setFilter(f.value)}>
                 {f.label}
               </IonChip>

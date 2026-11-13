@@ -10,6 +10,7 @@ import { useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import NotifBell from '../components/NotifBell';
+import { isSharingLocation, sendMyLocation, stopSharingLocation } from '../components/LocationSharing';
 import { usePageLoad } from '../hooks';
 import { useNotifications } from '../notifications';
 import type { DisasterEvent, EvacCenter, ResidentStatus, SafetyStatus } from '../types';
@@ -25,7 +26,7 @@ export default function Safety() {
   const [centers, setCenters] = useState<EvacCenter[]>([]);
   const [centerId, setCenterId] = useState<number | null>(null);
   const [atCenterOpen, setAtCenterOpen] = useState(false);
-  const [shareLocation, setShareLocation] = useState(() => localStorage.getItem('shareLocation') !== 'false');
+  const [shareLocation, setShareLocation] = useState(isSharingLocation);
   const [busy, setBusy] = useState(false);
   const { requests } = useNotifications();
 
@@ -74,6 +75,8 @@ export default function Safety() {
   const toggleShare = (v: boolean) => {
     setShareLocation(v);
     localStorage.setItem('shareLocation', String(v));
+    if (v) sendMyLocation();
+    else stopSharingLocation();
   };
 
   const myStatus = mine?.status ?? 'unaccounted';
@@ -163,7 +166,7 @@ export default function Safety() {
               <IonToggle checked={shareLocation} onIonChange={(e) => toggleShare(e.detail.checked)} color="success">
                 <IonLabel>
                   <b className="small">Share my location</b>
-                  <p className="small muted">Responders can see where you are</p>
+                  <p className="small muted">CDRRMO can see you on their live map</p>
                 </IonLabel>
               </IonToggle>
             </IonItem>

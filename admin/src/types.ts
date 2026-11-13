@@ -142,3 +142,16 @@ export type ResidentPage = {
   pageSize: number;
   counts: Record<'all' | SafetyStatus, number>;
 };
+
+// A resident who has "Share my location" on in the app (GET /locations)
+export type SharedLocation = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  barangay: string;
+  status: SafetyStatus;
+  contactNumber: string | null;
+  lat: number;
+  lng: number;
+  updatedAt: string;
+};

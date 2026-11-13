@@ -29,7 +29,7 @@ export default function Login() {
         <div className="auth-top">
           <div className="logo-tile"><LogoMark size={44} /></div>
           <h1>Calap Alert</h1>
-          <p>Brgy. Ibaba East &amp; Ibaba West, Calapan City</p>
+          <p>Calapan City, Oriental Mindoro</p>
         </div>
         <form className="auth-card" onSubmit={submit}>
           <div>

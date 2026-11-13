@@ -2,7 +2,7 @@ import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCheckbox, IonIcon, IonInput,
   IonLabel, IonSearchbar, IonSpinner, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast,
 } from '@ionic/react';
-import { add, chevronBack, chevronForward, locationOutline, peopleOutline } from 'ionicons/icons';
+import { add, chevronBack, chevronForward, peopleOutline } from 'ionicons/icons';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import AdminPage from '../components/AdminPage';
@@ -35,7 +35,7 @@ export default function Residents() {
       .then((list) => {
         setBarangays(list);
         const fromUrl = Number(urlParam('barangay'));
-        setBarangayId((cur) => (fromUrl && list.some((b) => b.id === fromUrl) ? fromUrl : cur || list[0]?.id || 0));
+        if (fromUrl && list.some((b) => b.id === fromUrl)) setBarangayId(fromUrl);
       })
       .catch((e) => setError(e.message));
     api<EvacCenter[]>('/evacuation-centers').then(setCenters).catch(() => {});
@@ -44,8 +44,8 @@ export default function Residents() {
   });
 
   const load = () => {
-    if (!barangayId) return;
-    const q = new URLSearchParams({ barangayId: String(barangayId), page: String(page), pageSize: '15' });
+    const q = new URLSearchParams({ page: String(page), pageSize: '15' });
+    if (barangayId) q.set('barangayId', String(barangayId)); // 0 = all barangays
     if (status !== 'all') q.set('status', status);
     if (search) q.set('search', search);
     api<ResidentPage>(`/residents?${q}`)
@@ -62,16 +62,14 @@ export default function Residents() {
     <AdminPage title="Residents" actions={<IonButton fill="solid" onClick={() => setAdding(true)}><IonIcon slot="start" icon={add} />Add Resident</IonButton>}>
       <div className="between wrap">
         <div>
-          <h1>Brgy. {brgy?.name ?? '…'}</h1>
+          <h1>{brgy ? `Brgy. ${brgy.name}` : 'All barangays'}</h1>
           <p className="muted subtitle">Check who is safe, and update the status of residents without a phone.</p>
         </div>
-        <IonSegment className="brgy-switch" value={String(barangayId)} onIonChange={(e) => { setBarangayId(Number(e.detail.value)); setPage(1); }}>
-          {barangays.map((b) => (
-            <IonSegmentButton key={b.id} value={String(b.id)}>
-              <IonLabel><IonIcon icon={locationOutline} /> {b.name}</IonLabel>
-            </IonSegmentButton>
-          ))}
-        </IonSegment>
+        <IonSelect className="brgy-switch" label="Barangay" labelPlacement="stacked" fill="outline" interface="popover"
+          value={barangayId} onIonChange={(e) => { setBarangayId(Number(e.detail.value)); setPage(1); }}>
+          <IonSelectOption value={0}>All barangays</IonSelectOption>
+          {barangays.map((b) => <IonSelectOption key={b.id} value={b.id}>{b.name}</IonSelectOption>)}
+        </IonSelect>
       </div>
       {error && <p className="error">{error}</p>}
 
@@ -241,7 +239,7 @@ function AddResident({ isOpen, barangays, defaultBarangay, onClose, onSaved }: {
       <form className="grid-form" onSubmit={save}>
         <IonInput label="First name" labelPlacement="stacked" fill="outline" value={f.firstName} onIonInput={set('firstName')} required />
         <IonInput label="Last name" labelPlacement="stacked" fill="outline" value={f.lastName} onIonInput={set('lastName')} required />
-        <IonSelect label="Barangay" labelPlacement="stacked" fill="outline" value={f.barangayId} onIonChange={set('barangayId')}>
+        <IonSelect label="Barangay" labelPlacement="stacked" fill="outline" interface="popover" placeholder="Choose…" value={f.barangayId || undefined} onIonChange={set('barangayId')}>
           {barangays.map((b) => <IonSelectOption key={b.id} value={b.id}>{b.name}</IonSelectOption>)}
         </IonSelect>
         <IonInput label="Birthday" labelPlacement="stacked" fill="outline" type="date" value={f.birthDate} onIonInput={set('birthDate')} />

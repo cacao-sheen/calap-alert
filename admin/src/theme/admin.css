@@ -84,6 +84,7 @@ ion-card-header.between { flex-direction: row; }
 .banner-icon { font-size: 34px; color: #dc2626; flex-shrink: 0; }
 .banner.calm .banner-icon { color: #16a34a; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.brgy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; }
 .brgy { background: #f8fafc; border-radius: var(--r-md); padding: 16px; display: flex; flex-direction: column; gap: 12px; color: #0f172a; }
 .mini-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .mini-stats small { display: block; color: #64748b; font-size: 11px; }
@@ -107,7 +108,7 @@ ion-card-header.between { flex-direction: row; }
 .type-chip.lg { width: 40px; height: 40px; border-radius: var(--r-md); font-size: 21px; }
 
 /* ---------- Residents ---------- */
-.brgy-switch { width: auto; min-width: 300px; }
+.brgy-switch { width: 260px; }
 .table-tools { padding: 8px 12px 0; }
 .table-tools ion-segment { width: auto; flex: 1; }
 .search { max-width: 280px; padding: 0; }
@@ -123,6 +124,7 @@ tr.row-alert td { background: #fff7f7; }
 .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .pager { padding: 12px 16px; }
 .num { width: 100px; --padding-start: 8px; min-height: 40px; }
+.brgy-cell { min-width: 190px; min-height: 40px; }
 .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .grid-form .full { grid-column: 1 / -1; }
 
@@ -136,6 +138,9 @@ tr.row-alert td { background: #fff7f7; }
 
 /* ---------- Map ---------- */
 .map-wrap { position: relative; border-radius: var(--r-md); overflow: hidden; }
+.map-wrap:fullscreen { border-radius: 0; }
+/* A resident sharing their location; colour = safety status */
+.person-dot { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.25), 0 3px 8px rgba(15, 23, 42, 0.35); cursor: pointer; }
 .map { position: absolute; inset: 0; }
 .map-toggle { position: absolute; top: 10px; left: 10px; z-index: 2; width: 120px; background: #fff; border-radius: var(--r-md); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15); }
 .pin { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #fff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); cursor: pointer; }
@@ -150,6 +155,9 @@ tr.row-alert td { background: #fff7f7; }
 
 /* ---------- Modals ---------- */
 ion-modal.form-modal { --width: 560px; --height: min(720px, 92vh); --border-radius: var(--r-lg); }
+/* "Add evacuation center": big window with a tall map, so the spot is easy to pick */
+ion-modal.form-modal.wide { --width: min(1000px, 94vw); --height: 94vh; }
+.form-modal.wide .picker-map { height: clamp(300px, 52vh, 640px); }
 
 /* ---------- Login: brand panel on the left, form on the right ---------- */
 .login-bg { --background: var(--content-bg); }
@@ -181,7 +189,7 @@ ion-modal.form-modal { --width: 560px; --height: min(720px, 92vh); --border-radi
   .panel.side, .panel.side.wide, .panel.detail { width: 100%; position: static; }
 }
 @media (max-width: 700px) {
-  ion-modal.form-modal { --width: 100%; --height: 100%; --border-radius: 0; }
+  ion-modal.form-modal, ion-modal.form-modal.wide { --width: 100%; --height: 100%; --border-radius: 0; }
   .toolbar-actions ion-button { margin-left: 2px; font-size: 13px; }
   .kpis, .kpis.four, .two-col, .grid-form { grid-template-columns: 1fr; }
   .mini-stats { grid-template-columns: repeat(3, 1fr); }

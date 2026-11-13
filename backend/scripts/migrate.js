@@ -1,6 +1,7 @@
 // Adds new tables / columns to an existing database WITHOUT deleting any data.
 // Safe to run any number of times:  npm run db:migrate
 import { pool } from '../src/db.js';
+import { CALAPAN_BARANGAYS } from '../src/geo.js';
 
 const STEPS = [
   // Push notifications (Firebase tokens of residents' phones)
@@ -32,10 +33,22 @@ const STEPS = [
      created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
      PRIMARY KEY (owner_resident_id, member_resident_id)
    )`,
+  // Residents' current spot while "Share my location" is on, for the admin Live Map
+  `CREATE TABLE IF NOT EXISTS resident_locations (
+     resident_id INT PRIMARY KEY REFERENCES residents(id) ON DELETE CASCADE,
+     lat         DOUBLE PRECISION NOT NULL,
+     lng         DOUBLE PRECISION NOT NULL,
+     accuracy    REAL,
+     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
 ];
 
 try {
   for (const sql of STEPS) await pool.query(sql);
+  // The system covers all of Calapan City (Ibaba East & West hold the test data): add any missing barangays
+  for (const name of CALAPAN_BARANGAYS) {
+    await pool.query('INSERT INTO barangays (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name]);
+  }
   console.log(`Database is up to date (${STEPS.length} checks done, no data deleted).`);
 } catch (err) {
   console.error('Migration failed:', err.message);

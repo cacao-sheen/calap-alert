@@ -52,7 +52,7 @@ export default function Alerts() {
         </span>
         <div className="grow">
           <div className="between">
-            <span className="small muted">{a.barangay ? `Brgy. ${a.barangay}` : 'Both barangays'} · {timeAgo(a.createdAt)}</span>
+            <span className="small muted">{a.barangay ? `Brgy. ${a.barangay}` : 'All barangays'} · {timeAgo(a.createdAt)}</span>
             {a.endedAt ? <IonBadge color="medium">Ended</IonBadge> : a.evacuate && <IonBadge color="danger">Evacuate</IonBadge>}
           </div>
           <b>{a.title}</b>

@@ -41,7 +41,7 @@ export function centerState(c: EvacCenter) {
 export const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '0%');
 export const fmt = (n: number) => n.toLocaleString('en-US');
 // Incidents are placed in a barangay by their GPS spot; spots farther away have none
-export const placeName = (barangay: string | null | undefined) => (barangay ? `Brgy. ${barangay}` : 'Outside Ibaba East & West');
+export const placeName = (barangay: string | null | undefined) => (barangay ? `Brgy. ${barangay}` : 'Barangay unknown');
 
 export const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
